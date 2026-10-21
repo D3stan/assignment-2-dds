@@ -1,11 +1,12 @@
 module one_hot_decoder #(
-    parameter int IMG_PX_WIDTH   = 352
-    parameter int IMG_WORD_WIDTH = IMG_PX_WIDTH/4
+    parameter  int WORDS_PER_LINE = 88,
+
+    localparam int POS_WIDTH      = $clog2(WORDS_PER_LINE)
 )(
-    input   logic [IMG_WORD_WIDTH-1 : 0]    fetch_pos,
+    input   logic [POS_WIDTH-1 : 0]         fetch_pos,
     input   logic                           fetch_en,
-    
-    output  logic [IMG_WORD_WIDTH-1 : 0]    out
+
+    output  logic [WORDS_PER_LINE-1 : 0]    out
 );
 
     always_comb begin

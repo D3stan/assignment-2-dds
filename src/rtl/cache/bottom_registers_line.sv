@@ -1,15 +1,15 @@
 module bottom_registers_line #(
-    parameter int IMG_PX_WIDTH = 352,
-    parameter int WORDS_PER_LINE = IMG_PX_WIDTH/4,
-    parameter int BITS_PER_LINE = IMG_PX_WIDTH * 8,
-    parameter int WORD_LENGTH = 8*4
+    parameter  int WORDS_PER_LINE = 88,
+    parameter  int WORD_LENGTH    = 32,
+
+    localparam int BITS_PER_LINE  = WORDS_PER_LINE * WORD_LENGTH
 )(
     input logic                         clk,
     input logic                         rst,
 
     input logic [WORDS_PER_LINE-1 : 0]  fetch_en,
     input logic [WORD_LENGTH-1 : 0]     in_word,
-    
+
     output logic [BITS_PER_LINE-1 : 0]  out_words
 );
 
@@ -18,7 +18,7 @@ module bottom_registers_line #(
         for (i = 0; i < WORDS_PER_LINE; i++) begin : for_word_registers
             word_register #(
                 .WORD_LENGTH (WORD_LENGTH)
-            ) u_word_registers (  
+            ) u_word_registers (
                 .clk        (clk),
                 .rst        (rst),
                 .load_en    (fetch_en[i]),

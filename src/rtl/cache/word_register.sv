@@ -11,7 +11,7 @@ module word_register #(
 );
 
     always_ff @(posedge clk or negedge rst) begin
-        if (!res)
+        if (!rst)
             out_word <= '0;
         else if (load_en)
             out_word <= in_word;
