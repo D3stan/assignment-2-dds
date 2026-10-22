@@ -185,3 +185,26 @@ run_ss: library_mapping
 	-l $(BUILD_DIR)/logs/sim/$(START_TIME)_ss_sim.log
 
 sim_ss: compile_ss elaborate_ss run_ss
+
+#============================================================
+# Verilator flow (CI): one unit/<tb>.f per testbench, see doc/testing.md
+#============================================================
+
+VL_BUILD   = $(BUILD_DIR)/vl
+UNIT_TESTS ?= $(basename $(notdir $(wildcard unit/*.f)))
+
+vl_%: unit/%.f
+	mkdir -p $(VL_BUILD) ../src/tb/out_images
+	verilator --binary --timing -Wno-fatal --top-module $* -f $< -Mdir $(VL_BUILD)/$* -o $* \
+	  > $(VL_BUILD)/$*.log 2>&1 || (cat $(VL_BUILD)/$*.log; false)
+	$(VL_BUILD)/$*/$*
+
+unit_tests: $(addprefix vl_,$(UNIT_TESTS))
+
+# Default warning set: bug-class warnings (width, latch, multidriven...) are fatal, style ones are off.
+lint:
+	rc=0; for f in unit/*.f; do verilator --lint-only $$(grep -v '/tb/' $$f) || rc=1; done; exit $$rc
+
+# Full accelerator output vs golden Sobel of the input image
+check_ss: vl_tb_student_ss
+	python3 check_sobel.py ../src/tb/src_images/pattern.pgm ../src/tb/out_images/pattern_result.pgm
