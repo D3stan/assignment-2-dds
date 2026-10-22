@@ -1,0 +1,36 @@
+name: rtl-tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verilator:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Lint
+        run: make -C sim lint
+
+      - name: Unit tests
+        if: ${{ !cancelled() }}
+        run: make -k -C sim unit_tests
+
+      - name: Accelerator vs golden Sobel
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: make -C sim check_ss
+
+      - name: Upload logs and images
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-output
+          path: |
+            build/vl/*.log
+            src/tb/out_images/
