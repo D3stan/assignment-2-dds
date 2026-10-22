@@ -1,4 +1,6 @@
-module fsm(
+module fsm#(
+    parameter int BUF_AW = 15
+)(
     input logic clk;
     input logic rst;
     
