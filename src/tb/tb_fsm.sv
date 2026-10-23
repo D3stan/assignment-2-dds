@@ -55,7 +55,7 @@ module tb_fsm;
         .wr_en      (wr_en),
         .start      (start),
         .finish     (finish),
-        .rd_ready   (rd_ready),
+        //.rd_ready   (rd_ready),
         .shift      (shift),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),

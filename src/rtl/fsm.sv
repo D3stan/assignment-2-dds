@@ -10,13 +10,13 @@ module fsm(
     input  logic start,
     output logic finish,
 
-    output logic rd_ready, // is the read data valid?
+    // output logic rd_ready, // is the read data valid?
     output logic shift,    // enable the cache shift 
     
     // control signals
     input logic rd_row_end, // rd_col = 88 ?
     input logic wr_row_end, // wr_col = 87 ?
-    input logic wr_col_end  // rd_addr = 288 * 88 ? 
+    input logic wr_col_end  // wr_row = 87 ? 
 );
     typedef enum logic [2:0] {
         IDLE,
@@ -36,15 +36,10 @@ module fsm(
     always_ff @(posedge clk or negedge rst) begin
         if (~rst) begin 
             state    <= IDLE;
-            rd_ready <= 1'b0;
+            // rd_ready <= 1'b0;
         end else begin 
             state <= next_state;
-            
-            if( state == FETCH  || 
-                state == WAIT_0 ||
-                state == WAIT_1 || 
-                state == COMPUTE)  rd_ready <= 1'b1;
-            else                   rd_ready <= 1'b0;
+            // rd_ready <= rd_en; // One cycle delayed
         end
     end
     
