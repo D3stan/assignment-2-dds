@@ -1,126 +1,105 @@
 module fsm#(
     parameter int BUF_AW = 15
 )(
-    input logic clk;
-    input logic rst;
+    input logic clk,
+    input logic rst,
     
     // read / write ports
-    output logic              rd_en,
-    output logic              wr_en,
-
-    output logic [BUF_AW-1:0] rd_addr,
-    output logic [BUF_AW-1:0] wr_addr,
+    output logic rd_en,
+    output logic wr_en,
 
     // handshake
     input  logic start,
-    output logic finish;
+    output logic finish,
 
-    output logic shift;    // enable the cache shift
-    output logic byte_idx; // current byte being processed
+    output logic rd_ready, // tells the cache when the data is ready (1 cycle later)
+    output logic shift,    // enable the cache shift
     
     // control signals
-    logic rd_addr_row_beg;  // read_addr % 88 = 0  ?
-    logic rd_addr_row_end;  // read_addr % 88 = 87 ? 
-    logic rd_addr_last_row; // read_addr >= 287 * 88 ? 
+    input logic rd_row_beg, // rd_col = 0  ?
+    input logic rd_row_end, // rd_col = 87 ? 
+    input logic wr_row_end, // wr_col = 87 ?
+    input logic rd_img_end  // rd_addr = 287 * 88 ? 
 );
     typedef enum logic [2:0] {
         IDLE,
         FETCH,
-        WAIT,
-        COMPUTE_0,
-        COMPUTE_1,
-        COMPUTE_2,
-        COMPUTE_3,
+        WAIT_0,
+        WAIT_1,
+        COMPUTE,
         SHIFT
     } state_t;
     
     state_t state;
-    logic   rd_en_int; // Handles read out of image and cache bounds
+    state_t next_state;
+
+    logic rd_inc;
+    logic wr_inc;
 
     always_ff @(posedge clk or negedge rst) begin
-        if (~rst_n) begin
-            state     <= IDLE;
-            rd_addr   <= '0;
-            wr_addr   <= '0;
-            rd_en_int <= 1'b0;
-            wr_en     <= 1'b0;
-            finish    <= 1'b0;
-            shift     <= 1'b0;
-            byte_idx  <= 2'b00;
-        end else begin
-            rd_en_int <= 1'b0;
-            wr_en     <= 1'b0;
-            finish    <= 1'b0;
-            byte_idx  <= 2'b00;
-            shift     <= 1'b0;
-            
-            // Post increments for address pointers
-            if(rd_en_int)
-                rd_addr <= rd_addr + 1'b1;
-            if(wr_en) 
-                wr_addr <= wr_addr + 1'b1;
-
-            case (state)
-                IDLE: begin
-                    if (start) begin
-                        rd_addr   <= '0;
-                        rd_en_int <= 1'b1;
-                        rd_addr   <= '0;
-                        state     <= FETCH;
-                    end
-
-                end
-                FETCH: begin 
-                    // if rd_addr= 88 
-                    rd_en_int <= 1'b1;
-                    if(rd_en_int & rd_addr_row_beg) // Wait first cycle before considering the expression
-                        state <= SHIFT;
-                end
-                WAIT: begin  // Wait one cycle for buffer to fill 
-                    rd_en_int <= 1'b1;
-                    state     <= COMPUTE_0;
-                end 
-                COMPUTE_0: begin
-                    rd_en_int <= 1'b1;
-                    byte_idx  <= 2'b00;
-                    state     <= COMPUTE_1;
-                end
-                COMPUTE_1: begin
-                    byte_idx <= 2'b01;
-                    state    <= COMPUTE_2;
-                end
-                COMPUTE_2: begin
-                    byte_idx <= 2'b10;
-                    state    <= COMPUTE_3;
-                end
-                COMPUTE_3: begin
-                    byte_idx <= 2'b11;
-                    wr_en    <= 1'b1;
-
-                    if (rd_addr_last_row & rd_addr_row_beg) begin 
-                        state  <= IDLE; 
-                        finish <= 1'b1;
-                    end 
-                    else if (rd_addr_row_beg)
-                        state <= SHIFT;
-                    else 
-                        state <= COMPUTE_0;
-                end
-                SHIFT: begin
-                    shift <= 1'b1;
-                    state <= WAIT;
-                end
-                default: state <= IDLE;
-            endcase
-
-        end
+        if (~rst) state <= IDLE;
+        else      state <= next_state;
     end
     
     always_comb begin
-        if(rd_addr_row_end | rd_addr_last_row)
+        rd_inc   = 1'b0;
+        wr_inc   = 1'b0;
+        finish   = 1'b0;
+        shift    = 1'b0;
+        case (state)
+            IDLE: ;
+            FETCH: begin 
+                rd_inc = 1'b1;
+            end
+            // Wait two cycles to allow the buffer to fill
+            WAIT_0: begin
+                rd_inc = 1'b1;
+                state  = WAIT_1;
+            end 
+            WAIT_1: begin
+                rd_inc   = 1'b1;
+                state    = COMPUTE;
+            end 
+            COMPUTE: begin
+                rd_inc   = 1'b1;
+                wr_inc   = 1'b1;
+
+                if (rd_img_end & wr_row_end) begin 
+                    finish = 1'b1;
+                end 
+            end
+            SHIFT: begin
+                shift = 1'b1;
+            end
+            default: ;
+        endcase
+    end
+
+    always_comb begin
+        next_state = state;
+        case (state)
+            IDLE:  if (start)     next_state = FETCH;
+            FETCH: if(rd_row_end) next_state = SHIFT;
+            // Wait two cycles to prefetch bottom 2 words
+            WAIT_0:               next_state = WAIT_1; 
+            WAIT_1:               next_state = COMPUTE;
+            COMPUTE: begin
+                if (rd_img_end & wr_row_end)
+                    next_state  = IDLE;
+                else if (wr_row_end)
+                    next_state = SHIFT;
+            end
+            SHIFT:   next_state = WAIT_0;
+            default: next_state = IDLE;
+        endcase
+    end
+    
+    assign wr_en = wr_inc;
+    always_comb begin
+        if(rd_row_end | rd_img_end)
             rd_en = 1'b0;
         else 
-            rd_en = rd_en_int;
+            rd_en = rd_inc;
     end 
 
 
