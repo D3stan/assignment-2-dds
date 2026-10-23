@@ -1,6 +1,4 @@
-module fsm#(
-    parameter int BUF_AW = 15
-)(
+module fsm(
     input logic clk,
     input logic rst,
     
@@ -12,14 +10,13 @@ module fsm#(
     input  logic start,
     output logic finish,
 
-    output logic rd_ready, // tells the cache when the data is ready (1 cycle later)
-    output logic shift,    // enable the cache shift
+    output logic rd_ready, // is the read data valid?
+    output logic shift,    // enable the cache shift 
     
     // control signals
-    input logic rd_row_beg, // rd_col = 0  ?
-    input logic rd_row_end, // rd_col = 87 ? 
+    input logic rd_row_end, // rd_col = 88 ?
     input logic wr_row_end, // wr_col = 87 ?
-    input logic rd_img_end  // rd_addr = 287 * 88 ? 
+    input logic wr_col_end  // rd_addr = 288 * 88 ? 
 );
     typedef enum logic [2:0] {
         IDLE,
@@ -37,8 +34,18 @@ module fsm#(
     logic wr_inc;
 
     always_ff @(posedge clk or negedge rst) begin
-        if (~rst) state <= IDLE;
-        else      state <= next_state;
+        if (~rst) begin 
+            state    <= IDLE;
+            rd_ready <= 1'b0;
+        end else begin 
+            state <= next_state;
+            
+            if( state == FETCH  || 
+                state == WAIT_0 ||
+                state == WAIT_1 || 
+                state == COMPUTE)  rd_ready <= 1'b1;
+            else                   rd_ready <= 1'b0;
+        end
     end
     
     always_comb begin
@@ -47,31 +54,20 @@ module fsm#(
         finish   = 1'b0;
         shift    = 1'b0;
         case (state)
-            IDLE: ;
-            FETCH: begin 
-                rd_inc = 1'b1;
-            end
-            // Wait two cycles to allow the buffer to fill
-            WAIT_0: begin
-                rd_inc = 1'b1;
-                state  = WAIT_1;
-            end 
-            WAIT_1: begin
-                rd_inc   = 1'b1;
-                state    = COMPUTE;
-            end 
+            FETCH:  rd_inc = 1'b1;
+            WAIT_0: rd_inc = 1'b1;
+            WAIT_1: rd_inc = 1'b1;
             COMPUTE: begin
-                rd_inc   = 1'b1;
-                wr_inc   = 1'b1;
+                rd_inc = 1'b1;
+                wr_inc = 1'b1;
 
-                if (rd_img_end & wr_row_end) begin 
+                if (wr_col_end & wr_row_end) begin 
                     finish = 1'b1;
                 end 
             end
             SHIFT: begin
                 shift = 1'b1;
             end
-            default: ;
         endcase
     end
 
@@ -80,11 +76,10 @@ module fsm#(
         case (state)
             IDLE:  if (start)     next_state = FETCH;
             FETCH: if(rd_row_end) next_state = SHIFT;
-            // Wait two cycles to prefetch bottom 2 words
-            WAIT_0:               next_state = WAIT_1; 
-            WAIT_1:               next_state = COMPUTE;
+            WAIT_0: next_state = WAIT_1; 
+            WAIT_1: next_state = COMPUTE;
             COMPUTE: begin
-                if (rd_img_end & wr_row_end)
+                if (wr_col_end & wr_row_end)
                     next_state  = IDLE;
                 else if (wr_row_end)
                     next_state = SHIFT;
@@ -96,7 +91,7 @@ module fsm#(
     
     assign wr_en = wr_inc;
     always_comb begin
-        if(rd_row_end | rd_img_end)
+        if(rd_row_end | wr_col_end)
             rd_en = 1'b0;
         else 
             rd_en = rd_inc;
