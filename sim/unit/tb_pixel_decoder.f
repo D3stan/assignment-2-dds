@@ -1,2 +1,2 @@
-../src/rtl/pixel_decoder.sv
-../src/tb/tb_pixel_decoder.sv
+src/rtl/decoder/pixel_decoder.sv
+src/tb/decoder/tb_pixel_decoder.sv
