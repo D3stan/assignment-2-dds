@@ -7,7 +7,7 @@ module tb_addr_incrementer;
     logic [14:0] rd_addr, wr_addr;
     logic [6:0]  rd_col, wr_col;
     logic [8:0]  rd_row, wr_row;
-    logic rd_row_end, wr_col_end;
+    logic rd_row_end, wr_row_end, wr_col_end;
     int errors = 0;
 
     // reference model
@@ -34,6 +34,7 @@ module tb_addr_incrementer;
         check("wr_row",  wr_row,  m_wr_row);
         check("wr_addr", wr_addr, m_wr_row * 88 + m_wr_col);
         check("rd_row_end", rd_row_end, m_rd_col == 88);
+        check("wr_row_end", wr_row_end, m_wr_col == 87);
         check("wr_col_end", wr_col_end, m_wr_row == 87);
     endtask
 

@@ -10,8 +10,7 @@
     at 88; it goes back to 0 (and rd_row advances) only when
     wr_col wraps from 87 to 0.
 
-    The counters do not wrap at the end of the frame. after the
-    last word, rd_row becomes 288 and wr_col_end goes high.
+   .
 */
 module addr_incrementer (
     input  logic        clk,
@@ -77,6 +76,6 @@ module addr_incrementer (
     // flags
     assign rd_row_end = (rd_col == 7'd88);
     assign wr_row_end = (wr_col == 7'd87);
-    assign wr_col_end = (wr_row == 7'd87);   
+    assign wr_col_end = (wr_row == 9'd287);   
 
 endmodule
