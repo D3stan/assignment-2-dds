@@ -99,7 +99,6 @@ module pixel_acc #(
     ) u_addr_incrementer (
         .clk        (),
         .rst_n      (),
-        .clr        (),
         .rd_inc     (),
         .wr_inc     (),
         .rd_addr    (),
@@ -108,9 +107,9 @@ module pixel_acc #(
         .wr_addr    (),
         .wr_col     (),
         .wr_row     (),
-        .rd_row_beg (),
         .rd_row_end (),
-        .rd_img_end ()
+        .wr_row_end (),
+        .wr_col_end ()
     );
 
 
