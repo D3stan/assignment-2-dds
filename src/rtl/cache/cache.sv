@@ -10,7 +10,7 @@ module cache #(
 )(
     // standard clock and reset input signals
     input   logic                       clk,
-    input   logic                       rst,
+    input   logic                       rst_n,
 
     input   logic                       shift_en,   // notifies the module to perform a upward shift
     input   logic [WORD_LENGTH-1 : 0]   in_word,    // the new received word
@@ -34,7 +34,7 @@ module cache #(
         .WORD_LENGTH    (WORD_LENGTH)
     ) u_top_line (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .shift_en   (shift_en),
         .in_word    (middle_bits),
         .out_words  (top_bits)
@@ -45,7 +45,7 @@ module cache #(
         .WORD_LENGTH    (WORD_LENGTH)
     ) u_middle_line (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .shift_en   (shift_en),
         .in_word    (bottom_bits),
         .out_words  (middle_bits)
@@ -56,7 +56,7 @@ module cache #(
         .WORD_LENGTH    (WORD_LENGTH)
     ) u_bottom_line (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .fetch_en   (fetch_pos_decoded),
         .in_word    (in_word),
         .out_words  (bottom_bits)

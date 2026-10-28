@@ -1,6 +1,6 @@
 module fsm(
     input logic clk,
-    input logic rst,
+    input logic rst_n,
     
     // read / write ports
     output logic rd_en,
@@ -33,8 +33,8 @@ module fsm(
     logic rd_inc;
     logic wr_inc;
 
-    always_ff @(posedge clk or negedge rst) begin
-        if (~rst) begin 
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin 
             state    <= IDLE;
             // rd_ready <= 1'b0;
         end else begin 
