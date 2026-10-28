@@ -5,7 +5,6 @@
     * addr_incrementer
     rd_inc - advance read  counter by one word
     wr_inc - advance write counter by one word
-    clr    - reset both counters to 0 (e.g. on start)
 
     wr_col counts 0..87 and wraps. rd_col counts 0..88 and holds
     at 88; it goes back to 0 (and rd_row advances) only when
@@ -32,8 +31,8 @@ module addr_incrementer (
     output logic [8:0]  wr_row,
 
     // flags
-    output logic        rd_row_beg,
     output logic        rd_row_end,
+    output logic        wr_row_end,
     output logic        wr_col_end
 );
 
