@@ -50,31 +50,34 @@ build_test: check-env
 ######################################################################
 
 compile: check-env
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win compile BUILD_DIR=$(BUILD_DIR)
+	$(MAKE) -C sim -f Makefile.win compile BUILD_DIR=$(BUILD_DIR)
 
 elaborate: check-env
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win elaborate BUILD_DIR=$(BUILD_DIR) TESTCASE=$(TEST)
+	$(MAKE) -C sim -f Makefile.win elaborate BUILD_DIR=$(BUILD_DIR) TESTCASE=$(TEST)
 
 elaborate_fast: check-env
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win elaborate_fast BUILD_DIR=$(BUILD_DIR) TESTCASE=$(TEST)
+	$(MAKE) -C sim -f Makefile.win elaborate_fast BUILD_DIR=$(BUILD_DIR) TESTCASE=$(TEST)
 
 run_sim: check-env
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win run_sim BUILD_DIR=$(BUILD_DIR)
+	$(MAKE) -C sim -f Makefile.win run_sim BUILD_DIR=$(BUILD_DIR)
 
 test_all: check-env compile elaborate_fast build_test run_sim
 
 test_all_gui: check-env compile elaborate build_test
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win run_sim BUILD_DIR=$(BUILD_DIR) GUI=
+	$(MAKE) -C sim -f Makefile.win run_sim BUILD_DIR=$(BUILD_DIR) GUI=
 
 test_ss: check-env
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win sim_ss BUILD_DIR=$(BUILD_DIR)
+	$(MAKE) -C sim -f Makefile.win sim_ss BUILD_DIR=$(BUILD_DIR)
 
 test_ss_gui: check-env
-	$(MAKE) -f Makefile.win -C sim -f Makefile.win sim_ss BUILD_DIR=$(BUILD_DIR) GUI=
+	$(MAKE) -C sim -f Makefile.win sim_ss BUILD_DIR=$(BUILD_DIR) GUI=
 
 ######################################################################
 # FPGA targets — Vivado runs natively on Windows
 ######################################################################
 
 fpga: check-env
-	$(MAKE) -f Makefile.win -C fpga -f Makefile.win all_xilinx BUILD_DIR=$(BUILD_DIR)
+	$(MAKE) -C fpga -f Makefile.win all_xilinx BUILD_DIR=$(BUILD_DIR)
+
+fpga_gui: check-env
+	$(MAKE) -C fpga -f Makefile.win all_xilinx_gui BUILD_DIR=$(BUILD_DIR)

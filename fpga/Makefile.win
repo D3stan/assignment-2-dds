@@ -20,7 +20,7 @@ all_xilinx: check_env
 	$(VIVADO) -mode batch -notrace -source scripts\run_xilinx.tcl
 
 all_xilinx_gui: check_env
-	start $(VIVADO) -mode gui -source scripts\run_xilinx.tcl
+	$(VIVADO) -mode gui -source scripts\run_xilinx.tcl
 
 # SW compiled inside WSL
 build_test: check_env
