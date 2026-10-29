@@ -54,7 +54,7 @@ static inline void uart_write_byte(uint8_t b)
 int main(void)
 {
     ss_init(0);
-    uart_init(8000000u, 38400u);
+    uart_init(15000000u, 38400u);
     IIR_FCR = 0x07u; /* FIFO enable + RX reset + TX reset */
 
     /* Main command loop:

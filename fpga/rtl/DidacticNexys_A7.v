@@ -108,7 +108,7 @@ wire clk_in2_Pll;
     .DIVCLK_DIVIDE        (5),
     .CLKFBOUT_MULT        (42),
     .CLKFBOUT_PHASE       (0.000),
-    .CLKOUT0_DIVIDE       (105),
+    .CLKOUT0_DIVIDE       (56),
     .CLKOUT0_PHASE        (0.000),
     .CLKOUT0_DUTY_CYCLE   (0.500),
     .CLKIN1_PERIOD        (10.000))

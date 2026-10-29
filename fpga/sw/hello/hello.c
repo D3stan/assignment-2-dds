@@ -12,7 +12,7 @@
 
 int main() {
 
-  uart_init(8000000u, 38400u);
+  uart_init(15000000u, 38400u);
 
   while (1) {
     uart_print("hello from didactic!\r\n");
