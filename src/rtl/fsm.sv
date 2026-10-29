@@ -23,6 +23,7 @@ module fsm(
         FETCH,
         WAIT_0,
         WAIT_1,
+        WAIT_2,
         COMPUTE,
         SHIFT
     } state_t;
@@ -50,6 +51,7 @@ module fsm(
             FETCH: rd_inc = 1'b1;
             WAIT_0: rd_inc = 1'b1;
             WAIT_1: rd_inc = 1'b1;
+            WAIT_2: rd_inc = 1'b1;
             COMPUTE: begin
                 rd_inc = 1'b1;
                 wr_inc = 1'b1;
@@ -70,7 +72,8 @@ module fsm(
             IDLE:  if (start) next_state = FETCH;
             FETCH:  if(rd_row_end) next_state = SHIFT;
             WAIT_0: next_state = WAIT_1; 
-            WAIT_1: next_state = COMPUTE;
+            WAIT_1: next_state = WAIT_2;
+            WAIT_2: next_state = COMPUTE;
             COMPUTE: begin
                 if (wr_col_end & wr_row_end)
                     next_state  = IDLE;

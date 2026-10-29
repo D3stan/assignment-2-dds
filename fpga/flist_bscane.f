@@ -263,6 +263,15 @@
 ../src/rtl/imt_ss_tieoff.sv
 ../src/rtl/kth_ss_tieoff.sv
 ../src/rtl/tum_ss_tieoff.sv
+../src/rtl/cache/word_register.sv
+../src/rtl/cache/one_hot_decoder.sv
+../src/rtl/cache/upper_registers_line.sv
+../src/rtl/cache/bottom_registers_line.sv
+../src/rtl/cache/cache.sv
+../src/rtl/fsm.sv
+../src/rtl/addr_incrementer.sv
+../src/rtl/decoder/pixel_decoder.sv
+../src/rtl/sobel_alu.sv
 ../src/rtl/pixel_acc.sv
 ../src/rtl/Student_area_0.sv
 ../src/rtl/student_ss_1.sv

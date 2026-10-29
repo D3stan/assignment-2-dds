@@ -70,6 +70,20 @@ module pixel_acc #(
     logic [8*9-1:0] pixel3;
     // ----------------------------------------
 
+    // Delay fetch enable and position by 1 cycle to match BRAM read latency
+    logic       cache_fetch_en;
+    logic [6:0] cache_fetch_pos;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            cache_fetch_en  <= 1'b0;
+            cache_fetch_pos <= 7'd0;
+        end else begin
+            cache_fetch_en  <= rd_en;
+            cache_fetch_pos <= fetch_pos;
+        end
+    end
+
     cache #(
         .IMG_PX_WIDTH    (IMG_WIDTH * 4)
     ) u_cache (
@@ -77,8 +91,8 @@ module pixel_acc #(
         .rst_n              (rst_n),
         .shift_en           (shift_en),
         .in_word            (ibuf_rd_data),
-        .fetch_en           (rd_en),
-        .fetch_pos          (fetch_pos),
+        .fetch_en           (cache_fetch_en),
+        .fetch_pos          (cache_fetch_pos),
         .output_bits_top    (output_bits_top),
         .output_bits_middle (output_bits_middle),
         .output_bits_bottom (output_bits_bottom)
