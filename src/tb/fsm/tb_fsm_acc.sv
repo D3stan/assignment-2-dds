@@ -44,7 +44,7 @@ module tb_top;
     // FSM Instance
     fsm u_fsm (
         .clk        (clk),
-        .rst        (rst_n),        // Active-low reset input (~rst)
+        .rst_n      (rst_n),        // Active-low reset input (~rst)
         .rd_en      (rd_en),
         .wr_en      (wr_en),
         .start      (start),

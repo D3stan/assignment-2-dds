@@ -33,16 +33,9 @@ module fsm(
     logic rd_inc;
     logic wr_inc;
 
-<<<<<<< Updated upstream
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin 
-            state    <= IDLE;
-            // rd_ready <= 1'b0;
-=======
-    always_ff @(posedge clk or negedge rst) begin
-        if (~rst) begin 
             state <= IDLE;
->>>>>>> Stashed changes
         end else begin 
             state <= next_state;
         end
