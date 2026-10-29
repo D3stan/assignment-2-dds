@@ -5,7 +5,7 @@ module upper_registers_line #(
     localparam int BITS_PER_LINE  = WORDS_PER_LINE * WORD_LENGTH
 )(
     input logic                         clk,
-    input logic                         rst,
+    input logic                         rst_n,
 
     input logic                         shift_en,
     input logic [BITS_PER_LINE-1 : 0]   in_word,
@@ -20,7 +20,7 @@ module upper_registers_line #(
                 .WORD_LENGTH (WORD_LENGTH)
             ) u_word_registers (
                 .clk        (clk),
-                .rst        (rst),
+                .rst_n      (rst_n),
                 .load_en    (shift_en),
                 .in_word    (in_word[i*WORD_LENGTH +: WORD_LENGTH]),
                 .out_word   (out_words[i*WORD_LENGTH +: WORD_LENGTH])

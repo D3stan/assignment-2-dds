@@ -160,7 +160,17 @@ run_sim: library_mapping
 #============================================================
 
 SS_TB = tb_student_ss
-SS_TB_SRC = ../src/tb/tb_student_ss.sv ../src/rtl/Student_area_0.sv ../src/rtl/pixel_acc.sv
+SS_ACC_SRC = \
+	../src/rtl/cache/word_register.sv \
+	../src/rtl/cache/one_hot_decoder.sv \
+	../src/rtl/cache/upper_registers_line.sv \
+	../src/rtl/cache/bottom_registers_line.sv \
+	../src/rtl/cache/cache.sv \
+	../src/rtl/fsm.sv \
+	../src/rtl/addr_incrementer.sv \
+	../src/rtl/decoder/pixel_decoder.sv \
+	../src/rtl/sobel_alu.sv
+SS_TB_SRC = ../src/tb/tb_student_ss.sv ../src/rtl/Student_area_0.sv ../src/rtl/pixel_acc.sv $(SS_ACC_SRC)
 
 compile_ss:
 	vlib $(BUILD_DIR)/didactic_lib
