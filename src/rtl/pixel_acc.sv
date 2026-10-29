@@ -61,7 +61,7 @@ module pixel_acc #(
     assign obuf_wr_en = wr_en;
     assign ibuf_rd_en = rd_en;
     // ----------------------------------------
-    logic [6:0] wr_col;
+    logic [$clog2(IMG_WIDTH/4)-1:0] wr_col;
     logic [8:0] wr_row;
     // ----------------------------------------
     logic [8*9-1:0] pixel0;
