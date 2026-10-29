@@ -34,11 +34,25 @@ add wave -noupdate /tb_student_ss/dut/obuf_rd_en
 add wave -noupdate /tb_student_ss/dut/obuf_rd_addr
 add wave -noupdate /tb_student_ss/dut/obuf_rd_data
 add wave -noupdate -divider {pixel_acc}
-add wave -noupdate /tb_student_ss/dut/i_acc/state
-add wave -noupdate /tb_student_ss/dut/i_acc/rd_addr
-add wave -noupdate /tb_student_ss/dut/i_acc/wr_addr
-add wave -noupdate /tb_student_ss/dut/i_acc/pipe_valid
-add wave -noupdate /tb_student_ss/dut/i_acc/pixel_out
+add wave -noupdate /tb_student_ss/dut/i_acc/u_fsm/state
+add wave -noupdate /tb_student_ss/dut/i_acc/start
+add wave -noupdate /tb_student_ss/dut/i_acc/finish
+add wave -noupdate /tb_student_ss/dut/i_acc/rd_en
+add wave -noupdate -radix unsigned /tb_student_ss/dut/i_acc/ibuf_rd_addr
+add wave -noupdate -radix hexadecimal /tb_student_ss/dut/i_acc/ibuf_rd_data
+add wave -noupdate -radix unsigned /tb_student_ss/dut/i_acc/fetch_pos
+add wave -noupdate /tb_student_ss/dut/i_acc/shift_en
+add wave -noupdate /tb_student_ss/dut/i_acc/wr_en
+add wave -noupdate -radix unsigned /tb_student_ss/dut/i_acc/obuf_wr_addr
+add wave -noupdate -radix unsigned /tb_student_ss/dut/i_acc/wr_col
+add wave -noupdate -radix unsigned /tb_student_ss/dut/i_acc/wr_row
+add wave -noupdate -radix hexadecimal /tb_student_ss/dut/i_acc/obuf_wr_data
+add wave -noupdate /tb_student_ss/dut/i_acc/rd_row_end
+add wave -noupdate /tb_student_ss/dut/i_acc/wr_row_end
+add wave -noupdate /tb_student_ss/dut/i_acc/wr_col_end
+add wave -noupdate -divider {cache}
+add wave -noupdate -radix hexadecimal /tb_student_ss/dut/i_acc/u_cache/fetch_pos_decoded
+add wave -noupdate -radix hexadecimal /tb_student_ss/dut/i_acc/u_cache/u_bottom_line/out_words
 TreeUpdate [SetDefaultTree]
 configure wave -namecolwidth 400
 configure wave -valuecolwidth 150
