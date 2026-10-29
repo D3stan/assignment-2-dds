@@ -36,8 +36,8 @@ module addr_incrementer (
 );
 
     // write wraps from 87 to 0 on this cycle
-    logic wr_wrap;
-    assign wr_wrap = wr_inc && (wr_col == 7'd87);
+    logic wrap;
+    assign wrap = (wr_inc && (wr_col == 7'd87)) || (rd_col == 7'd88) && (rd_row == 9'd0);
 
     // read counters
     // rd_col counts 0..88 and stops at 88. It only goes back to 0
@@ -46,7 +46,7 @@ module addr_incrementer (
         if (~rst_n) begin
             rd_col <= 7'd0;
             rd_row <= 9'd0;
-        end else if (wr_wrap) begin
+        end else if (wrap) begin
             rd_col <= 7'd0;
             rd_row <= rd_row + 9'd1;
         end else if (rd_inc && rd_col != 7'd88) begin

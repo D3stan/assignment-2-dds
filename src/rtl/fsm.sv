@@ -11,7 +11,7 @@ module fsm(
     output logic finish,
 
     // output logic rd_ready, // is the read data valid?
-    output logic shift,    // enable the cache shift 
+    output logic shift,       // enable the cache shift 
     
     // control signals
     input logic rd_row_end, // rd_col = 88 ?
@@ -33,13 +33,18 @@ module fsm(
     logic rd_inc;
     logic wr_inc;
 
+<<<<<<< Updated upstream
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin 
             state    <= IDLE;
             // rd_ready <= 1'b0;
+=======
+    always_ff @(posedge clk or negedge rst) begin
+        if (~rst) begin 
+            state <= IDLE;
+>>>>>>> Stashed changes
         end else begin 
             state <= next_state;
-            // rd_ready <= rd_en; // One cycle delayed
         end
     end
     
@@ -49,7 +54,7 @@ module fsm(
         finish   = 1'b0;
         shift    = 1'b0;
         case (state)
-            FETCH:  rd_inc = 1'b1;
+            FETCH: rd_inc = 1'b1;
             WAIT_0: rd_inc = 1'b1;
             WAIT_1: rd_inc = 1'b1;
             COMPUTE: begin
@@ -69,8 +74,8 @@ module fsm(
     always_comb begin
         next_state = state;
         case (state)
-            IDLE:  if (start)     next_state = FETCH;
-            FETCH: if(rd_row_end) next_state = SHIFT;
+            IDLE:  if (start) next_state = FETCH;
+            FETCH:  if(rd_row_end) next_state = SHIFT;
             WAIT_0: next_state = WAIT_1; 
             WAIT_1: next_state = COMPUTE;
             COMPUTE: begin

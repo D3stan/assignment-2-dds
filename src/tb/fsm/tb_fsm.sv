@@ -30,7 +30,7 @@ module tb_fsm;
 
     // Status / Control inputs to DUT
     logic rd_row_end; // Asserted when rd_col == 88
-    logic wr_row_end; // Asserted when wr_col == 88
+    logic wr_row_end; // Asserted when wr_col == 87
     logic wr_col_end; // Asserted when wr_row == 87
 
     // -------------------------------------------------------------
@@ -115,7 +115,7 @@ module tb_fsm;
     // Status Signal Decoding
     // -------------------------------------------------------------
     assign rd_row_end = (rd_col == IMG_COLS); // 1 when rd_col == 88
-    assign wr_row_end = (wr_col == IMG_COLS); // 1 when wr_col == 88
+    assign wr_row_end = (wr_col == 87); // 1 when wr_col == 88
     assign wr_col_end = (wr_row == 87);       // 1 when wr_row == 87
 
     // -------------------------------------------------------------
