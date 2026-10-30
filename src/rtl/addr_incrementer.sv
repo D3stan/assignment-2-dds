@@ -38,10 +38,6 @@ module addr_incrementer (
     output logic        wr_col_end
 );
 
-    // write wraps from 87 to 0 on this cycle
-    // logic wrap;
-    // assign wrap = (wr_inc && (wr_col == 7'd87)) || (rd_col == 7'd88) && (rd_row == 9'd0);
-
     // read counters
     // rd_col counts 0..88 and stops at 88. It only goes back to 0
     // (and rd_row only advances) when the write counter wraps.
