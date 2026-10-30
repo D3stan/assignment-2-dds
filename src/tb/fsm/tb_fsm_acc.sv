@@ -31,6 +31,9 @@ module tb_top;
     logic        wr_row_end;
     logic        wr_col_end;
 
+    logic wr_wrap;
+    logic rd_wrap;
+
     // -------------------------------------------------------------------------
     // Clock Generation (100 MHz -> 10ns period)
     // -------------------------------------------------------------------------
@@ -52,7 +55,9 @@ module tb_top;
         .shift      (shift),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
-        .wr_col_end (wr_col_end)
+        .wr_col_end (wr_col_end),
+        .wr_wrap    (wr_wrap),
+        .rd_wrap    (rd_wrap)
     );
 
     // Address Incrementer Instance
@@ -69,7 +74,9 @@ module tb_top;
         .wr_row     (wr_row),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
-        .wr_col_end (wr_col_end)
+        .wr_col_end (wr_col_end),
+        .wr_wrap    (wr_wrap),
+        .rd_wrap    (rd_wrap)
     );
 
     // -------------------------------------------------------------------------

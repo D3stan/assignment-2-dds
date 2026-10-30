@@ -56,6 +56,8 @@ module pixel_acc #(
     logic rd_row_end;
     logic wr_row_end;
     logic wr_col_end;
+    logic wr_wrap;
+    logic rd_wrap;
     logic wr_en;
     logic rd_en;
     assign obuf_wr_en = wr_en;
@@ -110,7 +112,9 @@ module pixel_acc #(
         .shift      (shift_en), 
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
-        .wr_col_end (wr_col_end) 
+        .wr_col_end (wr_col_end),
+        .wr_wrap    (wr_wrap),
+        .rd_wrap    (rd_wrap)
     );
 
     pixel_decoder #(
@@ -178,7 +182,9 @@ module pixel_acc #(
         .wr_row     (wr_row),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
-        .wr_col_end (wr_col_end)
+        .wr_col_end (wr_col_end),
+        .wr_wrap    (wr_wrap),
+        .rd_wrap    (rd_wrap)
     );
 
 

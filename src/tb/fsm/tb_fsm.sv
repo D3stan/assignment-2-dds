@@ -31,7 +31,7 @@ module tb_fsm;
     // Status / Control inputs to DUT
     logic rd_row_end; // Asserted when rd_col == 88
     logic wr_row_end; // Asserted when wr_col == 87
-    logic wr_col_end; // Asserted when wr_row == 87
+    logic wr_col_end; // Asserted when wr_row == 287
 
     // -------------------------------------------------------------
     // Datapath Emulation Registers
@@ -45,12 +45,15 @@ module tb_fsm;
     int unsigned wr_col;
     int unsigned wr_row;
 
+    logic wr_wrap;
+    logic rd_wrap;
+
     // -------------------------------------------------------------
     // DUT Instantiation
     // -------------------------------------------------------------
     fsm dut (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .rd_en      (rd_en),
         .wr_en      (wr_en),
         .start      (start),
@@ -59,7 +62,9 @@ module tb_fsm;
         .shift      (shift),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
-        .wr_col_end (wr_col_end)
+        .wr_col_end (wr_col_end),
+        .wr_wrap    (wr_wrap),
+        .rd_wrap    (rd_wrap)
     );
 
     // -------------------------------------------------------------

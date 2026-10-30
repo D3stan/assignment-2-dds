@@ -12,11 +12,13 @@ module fsm(
 
     // output logic rd_ready, // is the read data valid?
     output logic shift,       // enable the cache shift 
+    output logic rd_wrap,     // tells the incrementer to go to the next row 
+    output logic wr_wrap,
     
     // control signals
     input logic rd_row_end, // rd_col = 88 ?
     input logic wr_row_end, // wr_col = 87 ?
-    input logic wr_col_end  // wr_row = 87 ? 
+    input logic wr_col_end  // wr_row = 287 ? 
 );
     typedef enum logic [2:0] {
         IDLE,
@@ -47,15 +49,25 @@ module fsm(
         wr_inc   = 1'b0;
         finish   = 1'b0;
         shift    = 1'b0;
+        rd_wrap  = 1'b0;
+        wr_wrap  = 1'b0;
         case (state)
-            FETCH: rd_inc = 1'b1;
+            FETCH: begin 
+                rd_inc = 1'b1;
+                if(rd_row_end)
+                    rd_wrap = 1'b1;
+            end 
             WAIT_0: rd_inc = 1'b1;
             WAIT_1: rd_inc = 1'b1;
             WAIT_2: rd_inc = 1'b1;
             COMPUTE: begin
                 rd_inc = 1'b1;
                 wr_inc = 1'b1;
-
+                
+                if(wr_row_end) begin 
+                    wr_wrap = 1'b1;
+                    rd_wrap = 1'b1;
+                end
                 if (wr_col_end & wr_row_end) begin 
                     finish = 1'b1;
                 end 
