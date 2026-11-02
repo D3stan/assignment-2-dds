@@ -67,9 +67,19 @@ module addr_incrementer (
     end
 
     // addresses
-    assign rd_addr = rd_row * 15'd88 + rd_col;
-    assign wr_addr = wr_row * 15'd88 + wr_col;
-
+    always_comb begin : wr_addr_update
+        automatic logic [15:0] wr_row_x3  = wr_row << 1;
+        automatic logic [15:0] wr_row_x11 = (wr_row << 3) + wr_row_x3 + wr_row;
+        
+        wr_addr = (wr_row_x11 << 3) + wr_col;
+    end
+    always_comb begin : rd_addr_update
+        automatic logic [15:0] rd_row_x3  = rd_row << 1;
+        automatic logic [15:0] rd_row_x11 = (rd_row << 3) + rd_row_x3 + rd_row;
+        
+        rd_addr = (rd_row_x11 << 3) + rd_col;
+    end
+    
     // flags
     assign rd_row_end = (rd_col == 7'd88);
     assign wr_row_end = (wr_col == 7'd87);
