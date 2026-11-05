@@ -1,0 +1,156 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Thu Nov  5 10:34:35 2026
+| Host         : MSI running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -file C:/Users/puddu/Documents/GitHub/assignment-2-dds/build/fpga/logs/nexys_a7.utilization.rpt
+| Design       : DidacticNexys_A7
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+--------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-----------------------------------------------------------+-------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|                          Instance                         |                Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++-----------------------------------------------------------+-------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| DidacticNexys_A7                                          |                               (top) |      25403 |      17211 |    8192 |    0 | 16238 |     64 |      0 |          1 |
+|   (DidacticNexys_A7)                                      |                               (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
+|   didactic                                                |                            Didactic |      25403 |      17211 |    8192 |    0 | 16238 |     64 |      0 |          1 |
+|     Student_SS_0                                          |                      Student_SS_0_0 |       7220 |       7220 |       0 |    0 |  8560 |     64 |      0 |          0 |
+|       Student_area_0                                      |                      Student_area_0 |       7220 |       7220 |       0 |    0 |  8560 |     64 |      0 |          0 |
+|         (Student_area_0)                                  |                      Student_area_0 |         90 |         90 |       0 |    0 |    69 |      0 |      0 |          0 |
+|         i_acc                                             |                           pixel_acc |       7131 |       7131 |       0 |    0 |  8491 |      0 |      0 |          0 |
+|           u_sobel_alu4                                    |                           sobel_alu |         82 |         82 |       0 |    0 |     0 |      0 |      0 |          0 |
+|           u_addr_incrementer                              |                    addr_incrementer |         61 |         61 |       0 |    0 |    32 |      0 |      0 |          0 |
+|           u_cache                                         |                               cache |        226 |        226 |       0 |    0 |  8448 |      0 |      0 |          0 |
+|             u_bottom_line                                 |               bottom_registers_line |         64 |         64 |       0 |    0 |  2816 |      0 |      0 |          0 |
+|             u_middle_line                                 |                upper_registers_line |         68 |         68 |       0 |    0 |  2816 |      0 |      0 |          0 |
+|             u_one_hot_decoder                             |                     one_hot_decoder |         91 |         91 |       0 |    0 |     0 |      0 |      0 |          0 |
+|             u_top_line                                    |             upper_registers_line__1 |         76 |         76 |       0 |    0 |  2816 |      0 |      0 |          0 |
+|           u_pixel_decoder                                 |                       pixel_decoder |       6510 |       6510 |       0 |    0 |     0 |      0 |      0 |          0 |
+|           u_sobel_alu1                                    |                        sobel_alu__1 |         82 |         82 |       0 |    0 |     0 |      0 |      0 |          0 |
+|           u_sobel_alu2                                    |                        sobel_alu__2 |         82 |         82 |       0 |    0 |     0 |      0 |      0 |          0 |
+|           u_sobel_alu3                                    |                        sobel_alu__3 |         82 |         82 |       0 |    0 |     0 |      0 |      0 |          0 |
+|     Student_SS_1                                          |                      Student_SS_1_0 |         23 |         23 |       0 |    0 |    73 |      0 |      0 |          0 |
+|       student_ss_1                                        |                        student_ss_1 |         23 |         23 |       0 |    0 |    73 |      0 |      0 |          0 |
+|     SystemControl_SS                                      |                SysCtrl_SS_wrapper_0 |      17856 |       9664 |    8192 |    0 |  7519 |      0 |      0 |          1 |
+|       SysCtrl_SS                                          |                        SysCtrl_SS_0 |      17815 |       9623 |    8192 |    0 |  7519 |      0 |      0 |          1 |
+|         apb_gpio                                          |                            apb_gpio |        149 |        149 |       0 |    0 |   192 |      0 |      0 |          0 |
+|         apb_spi_master                                    |                      apb_spi_master |        836 |        836 |       0 |    0 |   998 |      0 |      0 |          0 |
+|           u_txfifo                                        |                  spi_master_fifo__1 |        136 |        136 |       0 |    0 |   333 |      0 |      0 |          0 |
+|           u_axiregs                                       |                   spi_master_apb_if |        126 |        126 |       0 |    0 |   162 |      0 |      0 |          0 |
+|           u_rxfifo                                        |                     spi_master_fifo |        136 |        136 |       0 |    0 |   333 |      0 |      0 |          0 |
+|           u_spictrl                                       |               spi_master_controller |        390 |        390 |       0 |    0 |   154 |      0 |      0 |          0 |
+|             (u_spictrl)                                   |               spi_master_controller |        220 |        220 |       0 |    0 |     5 |      0 |      0 |          0 |
+|             u_rxreg                                       |                       spi_master_rx |         77 |         77 |       0 |    0 |    66 |      0 |      0 |          0 |
+|             u_txreg                                       |                       spi_master_tx |         77 |         77 |       0 |    0 |    65 |      0 |      0 |          0 |
+|         apb_uart                                          |                            apb_uart |        716 |        716 |       0 |    0 |  1477 |      0 |      0 |          0 |
+|           (apb_uart)                                      |                            apb_uart |         93 |         93 |       0 |    0 |   102 |      0 |      0 |          0 |
+|           UART_BG16                                       |                        uart_baudgen |         51 |         51 |       0 |    0 |    17 |      0 |      0 |          0 |
+|           UART_RXFF                                       |           slib_fifo__parameterized0 |        270 |        270 |       0 |    0 |   736 |      0 |      0 |          0 |
+|           UART_TXFF                                       |                           slib_fifo |        219 |        219 |       0 |    0 |   540 |      0 |      0 |          0 |
+|         ctrl_reg_array                                    |                   SS_Ctrl_reg_array |        561 |        561 |       0 |    0 |  1282 |      0 |      0 |          0 |
+|         i_dmem                                            |                             sp_sram |       4526 |        430 |    4096 |    0 |   233 |      0 |      0 |          0 |
+|         i_ibex_wrapper                                    |                        ibex_wrapper |       2930 |       2930 |       0 |    0 |  1894 |      0 |      0 |          1 |
+|           Ibex_Core                                       |                            ibex_top |       2930 |       2930 |       0 |    0 |  1889 |      0 |      0 |          1 |
+|             u_ibex_core                                   |                           ibex_core |       2323 |       2323 |       0 |    0 |   896 |      0 |      0 |          1 |
+|               load_store_unit_i                           |                ibex_load_store_unit |        138 |        138 |       0 |    0 |    67 |      0 |      0 |          0 |
+|               cs_registers_i                              |                   ibex_cs_registers |        627 |        627 |       0 |    0 |   388 |      0 |      0 |          0 |
+|                 (cs_registers_i)                          |                   ibex_cs_registers |        529 |        529 |       0 |    0 |     4 |      0 |      0 |          0 |
+|                 mcycle_counter_i                          |                        ibex_counter |         49 |         49 |       0 |    0 |    64 |      0 |      0 |          0 |
+|                 minstret_counter_i                        |        ibex_counter__parameterized0 |         49 |         49 |       0 |    0 |    64 |      0 |      0 |          0 |
+|               ex_block_i                                  |                       ibex_ex_block |        766 |        766 |       0 |    0 |    75 |      0 |      0 |          1 |
+|                 (ex_block_i)                              |                       ibex_ex_block |         51 |         51 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 alu_i                                     |                            ibex_alu |        259 |        259 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 gen_multdiv_fast.multdiv_i                |                   ibex_multdiv_fast |        456 |        456 |       0 |    0 |    75 |      0 |      0 |          1 |
+|               id_stage_i                                  |                       ibex_id_stage |        354 |        354 |       0 |    0 |    83 |      0 |      0 |          0 |
+|                 (id_stage_i)                              |                       ibex_id_stage |        121 |        121 |       0 |    0 |    69 |      0 |      0 |          0 |
+|                 controller_i                              |                     ibex_controller |        137 |        137 |       0 |    0 |    14 |      0 |      0 |          0 |
+|                 decoder_i                                 |                        ibex_decoder |         96 |         96 |       0 |    0 |     0 |      0 |      0 |          0 |
+|               if_stage_i                                  |                       ibex_if_stage |        406 |        406 |       0 |    0 |   283 |      0 |      0 |          0 |
+|                 (if_stage_i)                              |                       ibex_if_stage |         68 |         68 |       0 |    0 |    84 |      0 |      0 |          0 |
+|                 compressed_decoder_i                      |             ibex_compressed_decoder |        152 |        152 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 gen_prefetch_buffer.prefetch_buffer_i     |                ibex_prefetch_buffer |        186 |        186 |       0 |    0 |   199 |      0 |      0 |          0 |
+|                   (gen_prefetch_buffer.prefetch_buffer_i) |                ibex_prefetch_buffer |         72 |         72 |       0 |    0 |    66 |      0 |      0 |          0 |
+|                   fifo_i                                  |                     ibex_fetch_fifo |        115 |        115 |       0 |    0 |   133 |      0 |      0 |          0 |
+|             gen_regfile_ff.register_file_i                |               ibex_register_file_ff |        607 |        607 |       0 |    0 |   992 |      0 |      0 |          0 |
+|         i_imem                                            |             sp_sram__parameterized0 |       4526 |        430 |    4096 |    0 |   233 |      0 |      0 |          0 |
+|         jtag_dbg_wrapper                                  |                jtag_dbg_wrapper_obi |       1380 |       1380 |       0 |    0 |  1035 |      0 |      0 |          0 |
+|           i_dmi_jtag                                      |                            dmi_jtag |        373 |        373 |       0 |    0 |   369 |      0 |      0 |          0 |
+|             (i_dmi_jtag)                                  |                            dmi_jtag |        118 |        118 |       0 |    0 |   117 |      0 |      0 |          0 |
+|             i_dmi_cdc                                     |                             dmi_cdc |        255 |        255 |       0 |    0 |   252 |      0 |      0 |          0 |
+|           i_dm_top                                        |                          dm_obi_top |       1006 |       1006 |       0 |    0 |   666 |      0 |      0 |          0 |
+|             i_dm_top                                      |                              dm_top |       1005 |       1005 |       0 |    0 |   665 |      0 |      0 |          0 |
+|               i_dm_csrs                                   |                             dm_csrs |        517 |        517 |       0 |    0 |   587 |      0 |      0 |          0 |
+|                 (i_dm_csrs)                               |                             dm_csrs |        496 |        496 |       0 |    0 |   517 |      0 |      0 |          0 |
+|                 i_fifo                                    |                             fifo_v2 |         21 |         21 |       0 |    0 |    70 |      0 |      0 |          0 |
+|                   i_fifo_v3                               |                             fifo_v3 |         21 |         21 |       0 |    0 |    70 |      0 |      0 |          0 |
+|               i_dm_mem                                    |                              dm_mem |        397 |        397 |       0 |    0 |    75 |      0 |      0 |          0 |
+|                 (i_dm_mem)                                |                              dm_mem |        371 |        371 |       0 |    0 |    70 |      0 |      0 |          0 |
+|               i_dm_sba                                    |                              dm_sba |         92 |         92 |       0 |    0 |     3 |      0 |      0 |          0 |
+|         peripherals_obi_to_apb                            |              peripherals_obi_to_apb |        281 |        281 |       0 |    0 |   100 |      0 |      0 |          0 |
+|           i_peripheral_obi_xbar                           |                       obi_xbar_intf |        273 |        273 |       0 |    0 |    19 |      0 |      0 |          0 |
+|             i_obi_xbar                                    |                            obi_xbar |        273 |        273 |       0 |    0 |    19 |      0 |      0 |          0 |
+|               gen_demux[1].i_addr_decode                  |                         addr_decode |         86 |         86 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_addr_decode_dync                        |                    addr_decode_dync |         86 |         86 |       0 |    0 |     0 |      0 |      0 |          0 |
+|               gen_demux[1].i_demux                        |                           obi_demux |        130 |        130 |       0 |    0 |     4 |      0 |      0 |          0 |
+|                 (gen_demux[1].i_demux)                    |                           obi_demux |        128 |        128 |       0 |    0 |     2 |      0 |      0 |          0 |
+|         sysctrl_obi_xbar                                  |                    sysctrl_obi_xbar |       1918 |       1918 |       0 |    0 |    75 |      0 |      0 |          0 |
+|           i_sysctrl_main_obi_xbar                         |       obi_xbar_intf__parameterized0 |       1918 |       1918 |       0 |    0 |    75 |      0 |      0 |          0 |
+|             i_obi_xbar                                    |            obi_xbar__parameterized0 |       1918 |       1918 |       0 |    0 |    75 |      0 |      0 |          0 |
+|               gen_demux[0].i_addr_decode                  |      addr_decode__parameterized0__1 |        149 |        149 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_addr_decode_dync                        | addr_decode_dync__parameterized0__1 |        149 |        149 |       0 |    0 |     0 |      0 |      0 |          0 |
+|               gen_demux[0].i_demux                        |        obi_demux__parameterized0__1 |        316 |        316 |       0 |    0 |     5 |      0 |      0 |          0 |
+|                 (gen_demux[0].i_demux)                    |        obi_demux__parameterized0__1 |        314 |        314 |       0 |    0 |     3 |      0 |      0 |          0 |
+|               gen_demux[1].i_addr_decode                  |      addr_decode__parameterized0__2 |        144 |        144 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_addr_decode_dync                        | addr_decode_dync__parameterized0__2 |        144 |        144 |       0 |    0 |     0 |      0 |      0 |          0 |
+|               gen_demux[1].i_demux                        |        obi_demux__parameterized0__2 |        310 |        310 |       0 |    0 |     5 |      0 |      0 |          0 |
+|                 (gen_demux[1].i_demux)                    |        obi_demux__parameterized0__2 |        308 |        308 |       0 |    0 |     3 |      0 |      0 |          0 |
+|               gen_demux[2].i_addr_decode                  |         addr_decode__parameterized0 |        143 |        143 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_addr_decode_dync                        |    addr_decode_dync__parameterized0 |        143 |        143 |       0 |    0 |     0 |      0 |      0 |          0 |
+|               gen_demux[2].i_demux                        |           obi_demux__parameterized0 |        137 |        137 |       0 |    0 |     5 |      0 |      0 |          0 |
+|                 (gen_demux[2].i_demux)                    |           obi_demux__parameterized0 |        135 |        135 |       0 |    0 |     3 |      0 |      0 |          0 |
+|               gen_mux[0].i_mux                            |          obi_mux__parameterized0__1 |        132 |        132 |       0 |    0 |    10 |      0 |      0 |          0 |
+|                 (gen_mux[0].i_mux)                        |          obi_mux__parameterized0__1 |         53 |         53 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_rr_arb                                  |      rr_arb_tree__parameterized0__1 |         75 |         75 |       0 |    0 |     6 |      0 |      0 |          0 |
+|                   (i_rr_arb)                              |      rr_arb_tree__parameterized0__1 |         73 |         73 |       0 |    0 |     6 |      0 |      0 |          0 |
+|               gen_mux[1].i_mux                            |          obi_mux__parameterized0__2 |        114 |        114 |       0 |    0 |    10 |      0 |      0 |          0 |
+|                 (gen_mux[1].i_mux)                        |          obi_mux__parameterized0__2 |         52 |         52 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_rr_arb                                  |      rr_arb_tree__parameterized0__2 |         59 |         59 |       0 |    0 |     6 |      0 |      0 |          0 |
+|                   (i_rr_arb)                              |      rr_arb_tree__parameterized0__2 |         57 |         57 |       0 |    0 |     6 |      0 |      0 |          0 |
+|               gen_mux[2].i_mux                            |          obi_mux__parameterized0__3 |        130 |        130 |       0 |    0 |    10 |      0 |      0 |          0 |
+|                 (gen_mux[2].i_mux)                        |          obi_mux__parameterized0__3 |         52 |         52 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_rr_arb                                  |      rr_arb_tree__parameterized0__3 |         75 |         75 |       0 |    0 |     6 |      0 |      0 |          0 |
+|                   (i_rr_arb)                              |      rr_arb_tree__parameterized0__3 |         73 |         73 |       0 |    0 |     6 |      0 |      0 |          0 |
+|               gen_mux[3].i_mux                            |          obi_mux__parameterized0__4 |        114 |        114 |       0 |    0 |    10 |      0 |      0 |          0 |
+|                 (gen_mux[3].i_mux)                        |          obi_mux__parameterized0__4 |         51 |         51 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_rr_arb                                  |      rr_arb_tree__parameterized0__4 |         59 |         59 |       0 |    0 |     6 |      0 |      0 |          0 |
+|                   (i_rr_arb)                              |      rr_arb_tree__parameterized0__4 |         57 |         57 |       0 |    0 |     6 |      0 |      0 |          0 |
+|               gen_mux[4].i_mux                            |          obi_mux__parameterized0__5 |        116 |        116 |       0 |    0 |    10 |      0 |      0 |          0 |
+|                 (gen_mux[4].i_mux)                        |          obi_mux__parameterized0__5 |         52 |         52 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_rr_arb                                  |      rr_arb_tree__parameterized0__5 |         61 |         61 |       0 |    0 |     6 |      0 |      0 |          0 |
+|                   (i_rr_arb)                              |      rr_arb_tree__parameterized0__5 |         59 |         59 |       0 |    0 |     6 |      0 |      0 |          0 |
+|               gen_mux[5].i_mux                            |             obi_mux__parameterized0 |        116 |        116 |       0 |    0 |    10 |      0 |      0 |          0 |
+|                 (gen_mux[5].i_mux)                        |             obi_mux__parameterized0 |         52 |         52 |       0 |    0 |     0 |      0 |      0 |          0 |
+|                 i_rr_arb                                  |         rr_arb_tree__parameterized0 |         61 |         61 |       0 |    0 |     6 |      0 |      0 |          0 |
+|                   (i_rr_arb)                              |         rr_arb_tree__parameterized0 |         59 |         59 |       0 |    0 |     6 |      0 |      0 |          0 |
+|     i_obi_icn_ss                                          |                          obi_icn_ss |        304 |        304 |       0 |    0 |    86 |      0 |      0 |          0 |
+|       i_icn_obi_xbar                                      |       obi_xbar_intf__parameterized1 |        300 |        300 |       0 |    0 |    15 |      0 |      0 |          0 |
+|         i_obi_xbar                                        |            obi_xbar__parameterized1 |        300 |        300 |       0 |    0 |    15 |      0 |      0 |          0 |
+|           gen_demux[1].i_addr_decode                      |         addr_decode__parameterized1 |        133 |        133 |       0 |    0 |     0 |      0 |      0 |          0 |
+|             i_addr_decode_dync                            |    addr_decode_dync__parameterized1 |        133 |        133 |       0 |    0 |     0 |      0 |      0 |          0 |
+|           gen_demux[1].i_demux                            |           obi_demux__parameterized1 |        121 |        121 |       0 |    0 |     5 |      0 |      0 |          0 |
+|             (gen_demux[1].i_demux)                        |           obi_demux__parameterized1 |        119 |        119 |       0 |    0 |     3 |      0 |      0 |          0 |
++-----------------------------------------------------------+-------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+
