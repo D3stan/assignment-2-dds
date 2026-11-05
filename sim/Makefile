@@ -162,7 +162,7 @@ run_sim: library_mapping
 SS_TB = tb_student_ss
 SS_ACC_SRC = \
 	../src/rtl/cache/word_register.sv \
-	../src/rtl/cache/one_hot_decoder.sv \
+	../src/rtl/cache/double_input_word_register.sv \
 	../src/rtl/cache/upper_registers_line.sv \
 	../src/rtl/cache/bottom_registers_line.sv \
 	../src/rtl/cache/cache.sv \

@@ -5,17 +5,16 @@ module cache #(
 
     localparam int WORD_LENGTH     = BYTE * PIXELS_PER_WORD,
     localparam int WORDS_PER_LINE  = IMG_PX_WIDTH / PIXELS_PER_WORD,
-    localparam int OUTPUT_BITS     = IMG_PX_WIDTH * BYTE,
-    localparam int FETCH_POS_WIDTH = $clog2(WORDS_PER_LINE)
+    localparam int OUTPUT_BITS     = IMG_PX_WIDTH * BYTE
 )(
     // standard clock and reset input signals
     input   logic                       clk,
     input   logic                       rst_n,
 
-    input   logic                       shift_en,   // notifies the module to perform a upward shift
+    input   logic                       shift_x_en, // notifies the module to perform a leftward shift on every line
+    input   logic                       shift_y_en, // notifies the module to perform an upward shift
     input   logic [WORD_LENGTH-1 : 0]   in_word,    // the new received word
-    input   logic                       fetch_en,   // notifies that the new fetched word is available
-    input   logic [FETCH_POS_WIDTH-1 : 0] fetch_pos, // notifies the position where the new word needs to be saved
+    input   logic [1 : 0]               fetch_pos,  // 10 -> load in 1st bottom reg, 01 -> load in 2nd bottom reg, else -> do not load
 
     // output signals for every register of every row
     output  logic [OUTPUT_BITS-1 : 0]   output_bits_top,
@@ -27,7 +26,6 @@ module cache #(
     logic [OUTPUT_BITS-1 : 0]       top_bits;
     logic [OUTPUT_BITS-1 : 0]       middle_bits;
     logic [OUTPUT_BITS-1 : 0]       bottom_bits;
-    logic [WORDS_PER_LINE-1 : 0]    fetch_pos_decoded;
 
     upper_registers_line #(
         .WORDS_PER_LINE (WORDS_PER_LINE),
@@ -35,7 +33,8 @@ module cache #(
     ) u_top_line (
         .clk        (clk),
         .rst_n      (rst_n),
-        .shift_en   (shift_en),
+        .shift_x_en (shift_x_en),
+        .shift_y_en (shift_y_en),
         .in_word    (middle_bits),
         .out_words  (top_bits)
     );
@@ -46,7 +45,8 @@ module cache #(
     ) u_middle_line (
         .clk        (clk),
         .rst_n      (rst_n),
-        .shift_en   (shift_en),
+        .shift_x_en (shift_x_en),
+        .shift_y_en (shift_y_en),
         .in_word    (bottom_bits),
         .out_words  (middle_bits)
     );
@@ -57,18 +57,10 @@ module cache #(
     ) u_bottom_line (
         .clk        (clk),
         .rst_n      (rst_n),
-        .fetch_en   (fetch_pos_decoded),
+        .shift_x_en (shift_x_en),
+        .fetch_pos  (fetch_pos),
         .in_word    (in_word),
         .out_words  (bottom_bits)
-    );
-
-
-    one_hot_decoder #(
-        .WORDS_PER_LINE (WORDS_PER_LINE)
-    ) u_one_hot_decoder (
-        .fetch_pos  (fetch_pos),
-        .fetch_en   (fetch_en),
-        .out        (fetch_pos_decoded)
     );
 
     always_comb begin

@@ -288,7 +288,7 @@
 ../src/rtl/kth_ss_tieoff.sv
 ../src/rtl/tum_ss_tieoff.sv
 ../src/rtl/cache/word_register.sv
-../src/rtl/cache/one_hot_decoder.sv
+../src/rtl/cache/double_input_word_register.sv
 ../src/rtl/cache/upper_registers_line.sv
 ../src/rtl/cache/bottom_registers_line.sv
 ../src/rtl/cache/cache.sv

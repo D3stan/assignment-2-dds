@@ -70,3 +70,6 @@ __pycache__/
 
 # Generated testbench data.
 test.txt
+
+CLAUDE.md
+.claude/
