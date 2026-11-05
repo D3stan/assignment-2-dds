@@ -16,10 +16,10 @@ module double_input_word_register #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             out_word <= '0;
+        else if (load_y_en)     // y has priority: a fetch in the same cycle of a shift wins
+            out_word <= in_y_word;
         else if (load_x_en)
             out_word <= in_x_word;
-        else if (load_y_en)
-            out_word <= in_y_word;
     end
 
 endmodule

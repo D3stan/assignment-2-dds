@@ -7,7 +7,7 @@ module bottom_registers_line #(
     input logic                         clk,
     input logic                         rst_n,
 
-    input logic                         shift_x_en,
+    input logic                         shift_x_en, // left rotation: reg i <- reg i+1, last reg <- reg 0
     input logic [1 : 0]                 fetch_pos,  // 10 -> load in 1 reg, 01 -> load in 2 reg, else -> do not load
 
     input logic [WORD_LENGTH-1 : 0]     in_word,
@@ -18,8 +18,14 @@ module bottom_registers_line #(
     // one extra word: word WORDS_PER_LINE is the input of the last register
     logic [BITS_PER_LINE+WORD_LENGTH-1 : 0] chain;
 
-    assign chain[BITS_PER_LINE +: WORD_LENGTH] = '0;
+    // wrap-around: the leftmost register (reg 0) re-enters on the right
+    assign chain[BITS_PER_LINE +: WORD_LENGTH] = chain[0 +: WORD_LENGTH];
     assign out_words = chain[BITS_PER_LINE-1 : 0];
+
+    // decoded fetch enables (00 and 11 do not load)
+    logic [1 : 0] fetch_en;
+    assign fetch_en[0] = (fetch_pos == 2'b10);  // 1st reg (reg 0)
+    assign fetch_en[1] = (fetch_pos == 2'b01);  // 2nd reg (reg 1)
 
     // first two registers: load from the right neighbour (shift) or from outside (fetch)
     genvar j;
@@ -32,7 +38,7 @@ module bottom_registers_line #(
                 .rst_n      (rst_n),
 
                 .load_x_en  (shift_x_en),
-                .load_y_en  (fetch_pos[1-j]),   // reg 0 <- fetch_pos[1], reg 1 <- fetch_pos[0]
+                .load_y_en  (fetch_en[j]),
 
                 .in_x_word  (chain[(j+1)*WORD_LENGTH +: WORD_LENGTH]),
                 .in_y_word  (in_word),

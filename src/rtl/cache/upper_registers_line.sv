@@ -17,7 +17,8 @@ module upper_registers_line #(
 
     logic [BITS_PER_LINE+WORD_LENGTH-1 : 0] chain;
 
-    assign chain[BITS_PER_LINE +: WORD_LENGTH] = '0;
+    // wrap-around: the leftmost register (reg 0) re-enters on the right
+    assign chain[BITS_PER_LINE +: WORD_LENGTH] = chain[0 +: WORD_LENGTH];
     assign out_words = chain[BITS_PER_LINE-1 : 0];
 
     genvar i;
