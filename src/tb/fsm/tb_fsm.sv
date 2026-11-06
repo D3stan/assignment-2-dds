@@ -26,7 +26,7 @@ module tb_fsm;
 
     // Cache / buffer control
     logic rd_ready;
-    logic shift;
+    logic yshift;
 
     // Status / Control inputs to DUT
     logic rd_row_end; // Asserted when rd_col == 88
@@ -59,7 +59,7 @@ module tb_fsm;
         .start      (start),
         .finish     (finish),
         //.rd_ready   (rd_ready),
-        .shift      (shift),
+        .yshift     (yshift),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
         .wr_col_end (wr_col_end),
@@ -106,7 +106,7 @@ module tb_fsm;
             // rd_col wraps to 0 whenever wr_col wraps (hits 88), 
             // or after the initial FETCH row completes via shift.
             // ---------------------------------------------------------
-            if ((wr_col >= IMG_COLS) || (shift && (wr_addr == 0))) begin
+            if ((wr_col >= IMG_COLS) || (yshift && (wr_addr == 0))) begin
                 rd_col <= '0;
                 rd_row <= rd_row + 1'b1;
             end else if (rd_en) begin
@@ -176,7 +176,7 @@ module tb_fsm;
 
                 // Verify return to IDLE after completion
                 repeat (3) @(posedge clk);
-                if (!rd_en && !wr_en && !shift) begin
+                if (!rd_en && !wr_en && !yshift) begin
                     $display("[%0t ns] SUCCESS: FSM returned cleanly to IDLE.", $time);
                 end else begin
                     $error("[%0t ns] ERROR: FSM signals remained active in IDLE.", $time);
