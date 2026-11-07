@@ -29,7 +29,8 @@ module fsm(
         WAIT_1,
         WAIT_2,
         COMPUTE,
-        SHIFT
+        SHIFT,
+        ALIGN
     } state_t;
     
     state_t state;
@@ -60,7 +61,7 @@ module fsm(
             FETCH: begin 
                 rd_inc    = 1'b1;
                 fetch_int = 2'b01;
-                xshift    = 1'b0;
+                xshift    = 1'b1;
                 if(rd_row_end)
                     rd_wrap = 1'b1;
             end 
@@ -90,9 +91,8 @@ module fsm(
                     finish = 1'b1;
                 end 
             end
-            SHIFT: begin
-                yshift = 1'b1;
-            end
+            ALIGN: xshift = 1'b1;
+            SHIFT: yshift = 1'b1;
         endcase
     end
 
@@ -100,7 +100,8 @@ module fsm(
         next_state = state;
         case (state)
             IDLE:  if (start) next_state = FETCH;
-            FETCH:  if(rd_row_end) next_state = SHIFT;
+            FETCH:  if(rd_row_end) next_state = ALIGN;
+            ALIGN: next_state = SHIFT;
             WAIT_0: next_state = WAIT_1; 
             WAIT_1: next_state = WAIT_2;
             WAIT_2: next_state = COMPUTE;

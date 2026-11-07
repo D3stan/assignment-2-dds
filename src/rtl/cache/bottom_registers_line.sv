@@ -24,8 +24,8 @@ module bottom_registers_line #(
 
     // decoded fetch enables (00 and 11 do not load)
     logic [1 : 0] fetch_en;
-    assign fetch_en[0] = (fetch_pos == 2'b10);  // 1st reg (reg 0)
-    assign fetch_en[1] = (fetch_pos == 2'b01);  // 2nd reg (reg 1)
+    assign fetch_en[0] = (fetch_pos == 2'b01);  // 1st reg (reg 0)
+    assign fetch_en[1] = (fetch_pos == 2'b10);  // 2nd reg (reg 1)
 
     // first two registers: load from the right neighbour (shift) or from outside (fetch)
     genvar j;
