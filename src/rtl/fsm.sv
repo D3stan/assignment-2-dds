@@ -64,10 +64,13 @@ module fsm(
                 if(rd_row_end)
                     rd_wrap = 1'b1;
             end 
-            WAIT_0: rd_inc = 1'b1;
+            WAIT_0: begin 
+                rd_inc = 1'b1;
+                fetch_int = 2'b01;
+            end
             WAIT_1: begin
                 rd_inc    = 1'b1;
-                fetch_int = 2'b01;
+                fetch_int = 2'b10;
             end 
             WAIT_2: begin 
                 rd_inc    = 1'b1;

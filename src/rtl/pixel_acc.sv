@@ -25,7 +25,8 @@
 module pixel_acc #(
     parameter int BUF_AW    = 15,
     parameter int BUF_DEPTH = 25344,
-    parameter int IMG_WIDTH = 88      // 352 pixels / 4 pixels-per-word
+    parameter int IMG_WIDTH = 88,      // 352 pixels / 4 pixels-per-word
+    parameter int WINDOW_WIDTH = 6
 )(
     input  logic                  clk,
     input  logic                  rst_n,
@@ -46,9 +47,9 @@ module pixel_acc #(
 );
 
     // auxiliary signals
-    logic shift_en;
-    logic fetch_en;
-    logic [6:0] fetch_pos;
+    logic yshift_en;
+    logic xshift_en;
+    logic [1:0] fetch_pos;
     logic [IMG_WIDTH*4*8-1:0] output_bits_top;
     logic [IMG_WIDTH*4*8-1:0] output_bits_middle;
     logic [IMG_WIDTH*4*8-1:0] output_bits_bottom;
@@ -73,15 +74,12 @@ module pixel_acc #(
     // ----------------------------------------
 
     // Delay fetch enable and position by 1 cycle to match BRAM read latency
-    logic       cache_fetch_en;
-    logic [6:0] cache_fetch_pos;
+    logic [1:0] cache_fetch_pos;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
-            cache_fetch_en  <= 1'b0;
-            cache_fetch_pos <= 7'd0;
+            cache_fetch_pos <= 2'd0;
         end else begin
-            cache_fetch_en  <= rd_en;
             cache_fetch_pos <= fetch_pos;
         end
     end
@@ -91,9 +89,9 @@ module pixel_acc #(
     ) u_cache (
         .clk                (clk),
         .rst_n              (rst_n),
-        .shift_en           (shift_en),
+        .shift_y_en         (yshift_en),
+        .shift_x_en         (xshift_en),
         .in_word            (ibuf_rd_data),
-        .fetch_en           (cache_fetch_en),
         .fetch_pos          (cache_fetch_pos),
         .output_bits_top    (output_bits_top),
         .output_bits_middle (output_bits_middle),
@@ -109,7 +107,9 @@ module pixel_acc #(
         .wr_en      (wr_en),
         .start      (start),
         .finish     (finish),
-        .shift      (shift_en), 
+        .yshift     (yshift_en), 
+        .xshift     (xshift_en), 
+        .fetch      (fetch_pos),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
         .wr_col_end (wr_col_end),
@@ -117,12 +117,34 @@ module pixel_acc #(
         .rd_wrap    (rd_wrap)
     );
 
+    logic [47:0] strip_top;
+    logic [47:0] strip_middle;
+    logic [47:0] strip_bottom;
+
+    // Construct 6-pixel strip: {Right Neighbor, Current Word (4 px), Left Neighbor}
+    assign strip_top = {
+        output_bits_top[39:32],     // [47:40] : First pixel of Word 1 (Right neighbor)
+        output_bits_top[31:0],      // [39:8]  : 4 pixels of Word 0 (Current word)
+        output_bits_top[2815:2808]  // [7:0]   : Last pixel of Word 87 (Left neighbor)
+    };
+
+    assign strip_middle = {
+        output_bits_middle[39:32],
+        output_bits_middle[31:0],
+        output_bits_middle[2815:2808]
+    };
+
+    assign strip_bottom = {
+        output_bits_bottom[39:32],
+        output_bits_bottom[31:0],
+        output_bits_bottom[2815:2808]
+    };
     pixel_decoder #(
 
     ) u_pixel_decoder (
-        .row_above  (output_bits_top),
-        .row_center (output_bits_middle),
-        .row_below  (output_bits_bottom),
+        .row_above  (strip_top),
+        .row_center (strip_middle),
+        .row_below  (strip_bottom),
         .row_idx    (wr_row),
         .col_idx    (wr_col),
         .p000       (pixel0[8*0 +: 8]),
@@ -175,7 +197,7 @@ module pixel_acc #(
         .rd_inc     (rd_en),
         .wr_inc     (wr_en),
         .rd_addr    (ibuf_rd_addr),
-        .rd_col     (fetch_pos),
+        .rd_col     (),
         .rd_row     (),
         .wr_addr    (obuf_wr_addr),
         .wr_col     (wr_col),
@@ -250,8 +272,4 @@ module pixel_acc #(
         .p22        (pixel3[8*8 +: 8]),
         .pixel_out  (obuf_wr_data[31:24])
     );
-
-
-
-
 endmodule
