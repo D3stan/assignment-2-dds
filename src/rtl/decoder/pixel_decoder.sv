@@ -2,11 +2,12 @@ module pixel_decoder #(
     parameter int IMG_WIDTH = 352,
     parameter int IMG_HEIGHT = 288,
     parameter int PIXEL_WIDTH = 8,
+    parameter int WINDOW_WIDTH = 6,
     parameter int IMG_WIDTH_WORDS = IMG_WIDTH / 4
 ) (
-    input logic [PIXEL_WIDTH*IMG_WIDTH-1:0] row_above,
-    input logic [PIXEL_WIDTH*IMG_WIDTH-1:0] row_center,
-    input logic [PIXEL_WIDTH*IMG_WIDTH-1:0] row_below,
+    input logic [PIXEL_WIDTH*WINDOW_WIDTH-1:0] row_above,
+    input logic [PIXEL_WIDTH*WINDOW_WIDTH-1:0] row_center,
+    input logic [PIXEL_WIDTH*WINDOW_WIDTH-1:0] row_below,
 
     input logic [$clog2(IMG_HEIGHT)-1:0] row_idx,
     input logic [$clog2(IMG_WIDTH_WORDS)-1:0] col_idx,
@@ -19,34 +20,28 @@ module pixel_decoder #(
 
     localparam int WORD_W = 4 * PIXEL_WIDTH;
 
-    typedef logic [PIXEL_WIDTH*IMG_WIDTH-1:0] row_t;
     typedef logic [5:0][PIXEL_WIDTH-1:0] strip_t;
     typedef logic [$clog2(IMG_WIDTH_WORDS)-1:0] cidx_t;
 
     // 6 pixel strip with replicated borders for leftmost/rightmost pixels
-    function automatic strip_t get_strip(input row_t r, input cidx_t c);
-        logic [WORD_W-1:0] w;
-        logic [PIXEL_WIDTH-1:0] left, right;
-        cidx_t c_prev, c_next;
+    function automatic strip_t get_strip(input strip_t r, input cidx_t c);
+        logic [3:0][PIXEL_WIDTH-1:0] w;
+        logic [PIXEL_WIDTH-1:0]      left, right;
 
-        c_prev = (c == 0) ? c : c - 1'b1;
-        c_next = (c == IMG_WIDTH_WORDS - 1) ? c : c + 1'b1;
+        w     = r[4:1];
+        left  = (c == '0)                  ? w[0] : r[0];
+        right = (c == IMG_WIDTH_WORDS - 1) ? w[3] : r[5];
 
-        w = r[WORD_W*c +: WORD_W];
-        left = (c == 0) ? w[PIXEL_WIDTH-1:0]
-                        : r[WORD_W*c_prev + 3*PIXEL_WIDTH +: PIXEL_WIDTH];
-        right = (c == IMG_WIDTH_WORDS - 1) ? w[WORD_W-1 -: PIXEL_WIDTH]
-                                           : r[WORD_W*c_next +: PIXEL_WIDTH];
-
-        return {right, w, left};
+        return strip_t'{right, w[3], w[2], w[1], w[0], left};
     endfunction
 
-    row_t top_row, bot_row;
+    strip_t top_row, bot_row;
     strip_t t, m, b;
 
+
     // replicate top/bottom row for first/last row of the image
-    assign top_row = (row_idx == 0) ? row_center : row_above;
-    assign bot_row = (row_idx == IMG_HEIGHT - 1) ? row_center : row_below;
+    assign top_row = strip_t'((row_idx == 0)              ? row_center : row_above);
+    assign bot_row = strip_t'((row_idx == IMG_HEIGHT - 1) ? row_center : row_below);
 
     assign t = get_strip(top_row, col_idx);
     assign m = get_strip(row_center, col_idx);

@@ -10,8 +10,10 @@ module fsm(
     input  logic start,
     output logic finish,
 
-    // output logic rd_ready, // is the read data valid?
-    output logic shift,       // enable the cache shift 
+    output logic       yshift,     // enable the cache shift upward
+    output logic       xshift,     // enable the cache shift left
+    output logic [1:0] fetch, // tells the cache where not to fetch (00), to fetch on the first word (01) or the second (10)
+
     output logic rd_wrap,     // tells the incrementer to go to the next row 
     output logic wr_wrap,
     
@@ -44,25 +46,38 @@ module fsm(
         end
     end
     
+    logic [1:0] fetch_int;
     always_comb begin
         rd_inc   = 1'b0;
         wr_inc   = 1'b0;
         finish   = 1'b0;
-        shift    = 1'b0;
+        yshift   = 1'b0;
+        xshift   = 1'b0;
         rd_wrap  = 1'b0;
         wr_wrap  = 1'b0;
+        fetch_int = 2'b0;
         case (state)
             FETCH: begin 
-                rd_inc = 1'b1;
+                rd_inc    = 1'b1;
+                fetch_int = 2'b01;
+                xshift    = 1'b0;
                 if(rd_row_end)
                     rd_wrap = 1'b1;
             end 
             WAIT_0: rd_inc = 1'b1;
-            WAIT_1: rd_inc = 1'b1;
-            WAIT_2: rd_inc = 1'b1;
+            WAIT_1: begin
+                rd_inc    = 1'b1;
+                fetch_int = 2'b01;
+            end 
+            WAIT_2: begin 
+                rd_inc    = 1'b1;
+                fetch_int = 2'b10;
+            end 
             COMPUTE: begin
                 rd_inc = 1'b1;
                 wr_inc = 1'b1;
+                xshift = 1'b1;
+                fetch_int = 2'b10;
                 
                 if(wr_row_end) begin 
                     wr_wrap = 1'b1;
@@ -73,7 +88,7 @@ module fsm(
                 end 
             end
             SHIFT: begin
-                shift = 1'b1;
+                yshift = 1'b1;
             end
         endcase
     end
@@ -98,12 +113,8 @@ module fsm(
     end
     
     assign wr_en = wr_inc;
-    always_comb begin
-        if(rd_row_end | wr_col_end)
-            rd_en = 1'b0;
-        else 
-            rd_en = rd_inc;
-    end 
+    assign rd_en = (rd_row_end || wr_col_end) ? 1'b0 : rd_inc;
 
+    assign fetch = rd_en ? fetch_int : 2'b00;
 
 endmodule
