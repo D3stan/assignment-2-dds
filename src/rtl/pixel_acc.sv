@@ -49,7 +49,6 @@ module pixel_acc #(
     // auxiliary signals
     logic yshift_en;
     logic xshift_en;
-    logic [1:0] fetch_pos;
     logic [IMG_WIDTH*4*8-1:0] output_bits_top;
     logic [IMG_WIDTH*4*8-1:0] output_bits_middle;
     logic [IMG_WIDTH*4*8-1:0] output_bits_bottom;
@@ -73,16 +72,8 @@ module pixel_acc #(
     logic [8*9-1:0] pixel3;
     // ----------------------------------------
 
-    // Delay fetch enable and position by 1 cycle to match BRAM read latency
     logic [1:0] cache_fetch_pos;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            cache_fetch_pos <= 2'd0;
-        end else begin
-            cache_fetch_pos <= fetch_pos;
-        end
-    end
 
     cache #(
         .IMG_PX_WIDTH    (IMG_WIDTH * 4)
@@ -109,7 +100,7 @@ module pixel_acc #(
         .finish     (finish),
         .yshift     (yshift_en), 
         .xshift     (xshift_en), 
-        .fetch      (fetch_pos),
+        .fetch      (cache_fetch_pos),
         .rd_row_end (rd_row_end),
         .wr_row_end (wr_row_end),
         .wr_col_end (wr_col_end),

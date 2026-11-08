@@ -20,7 +20,7 @@ module fsm(
     // control signals
     input logic rd_row_end, // rd_col = 88 ?
     input logic wr_row_end, // wr_col = 87 ?
-    input logic wr_col_end  // wr_row = 287 ? 
+    input logic wr_col_end  // wr_row = 287 ?
 );
     typedef enum logic [2:0] {
         IDLE,
@@ -39,15 +39,17 @@ module fsm(
     logic rd_inc;
     logic wr_inc;
 
+    logic [1:0] fetch_int;
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin 
             state <= IDLE;
+            fetch <= 0;
         end else begin 
             state <= next_state;
+            fetch <= rd_en ? fetch_int : 2'b0;
         end
     end
     
-    logic [1:0] fetch_int;
     always_comb begin
         rd_inc   = 1'b0;
         wr_inc   = 1'b0;
@@ -118,7 +120,4 @@ module fsm(
     
     assign wr_en = wr_inc;
     assign rd_en = (rd_row_end || wr_col_end) ? 1'b0 : rd_inc;
-
-    assign fetch = rd_en ? fetch_int : 2'b00;
-
 endmodule
