@@ -39,6 +39,20 @@
 /* ------------------------------------------------------------------ */
 /* Receive one byte from UART (polling)                               */
 /* ------------------------------------------------------------------ */
+static inline uint32_t rdcycle(void)
+{
+    uint32_t c;
+    __asm__ volatile ("csrr %0, mcycle" : "=r"(c));
+    return c;
+}
+
+volatile uint32_t g_cycles_rx_start;
+volatile uint32_t g_cycles_rx_end;
+volatile uint32_t g_cycles_acc_start;
+volatile uint32_t g_cycles_acc_end;
+volatile uint32_t g_cycles_rx_delta;
+volatile uint32_t g_cycles_acc_delta;
+
 static inline uint8_t uart_read_byte(void)
 {
     while (!(LSR & 0x1u)) {}        // Wait for RX data ready
@@ -70,6 +84,7 @@ int main(void)
 #ifndef BYPASS_UART
     /* Receive image pixel-by-pixel from UART, pack 4 bytes per word,
      * write directly into ibuf — no DMEM buffering needed. */
+    g_cycles_rx_start = rdcycle();
     *ACCEL_IBUF_ADDR = 0u;
     for (uint32_t i = 0u; i < BUF_DEPTH; i++) {
          uint32_t word = (uint32_t)uart_read_byte()
@@ -78,10 +93,15 @@ int main(void)
                        | ((uint32_t)uart_read_byte() << 24);
         *ACCEL_IBUF_DATA = word;
     }
+    g_cycles_rx_end = rdcycle();
+    g_cycles_rx_delta = g_cycles_rx_end - g_cycles_rx_start;
 #endif /* BYPASS_UART: ibuf pre-loaded by testbench */
 
+    g_cycles_acc_start = rdcycle();
     *ACCEL_CSR = CSR_DATA_READY;
     while (!(*ACCEL_CSR & CSR_DONE)) {}
+    g_cycles_acc_end = rdcycle();
+    g_cycles_acc_delta = g_cycles_acc_end - g_cycles_acc_start;
 
     /* Send processed pixels back over UART, byte by byte. */
     // *ACCEL_OBUF_ADDR = 0u;
@@ -93,5 +113,8 @@ int main(void)
     //     uart_write_byte((uint8_t)((word >> 24) & 0xFFu));
     // }
     
+    while (1) {
+        __asm__ volatile ("wfi"); // Wait for interrupt
+    }
     return 0;
 }

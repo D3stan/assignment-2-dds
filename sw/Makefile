@@ -20,7 +20,7 @@ SHELL = bash
 BUILD_DIR ?= ../build
 XLEN ?= 64
 PREFIX ?= riscv$(XLEN)-unknown-elf
-ARCH_FLAGS ?= -march=rv32imc -mabi=ilp32
+ARCH_FLAGS ?= -march=rv32imc_zicsr -mabi=ilp32 # Zicsr extension for CSR instructions
 CC=$(PREFIX)-gcc
 CFLAGS=-O2 -g -ffunction-sections -fdata-sections -Icommon/ $(UART_FLAG) $(BYPASS_FLAG)
 OBJDUMP ?= $(PREFIX)-objdump

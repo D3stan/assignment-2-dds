@@ -195,6 +195,12 @@ initial begin
     wait(tb_didactic.i_didactic.Student_SS_0.Student_area_0.csr_done === 1'b1);
     @(posedge clk);  // one extra cycle so last obuf write is settled
     $display("[TB] Accelerator done @ %0t ns", $time);
+    #100; // 100 ns delay 
+    $display("==================================================");
+    $display("[TB] --- HARDWARE PERFORMANCE PROFILING ---");
+    $display("[TB]   CPU RX Loop (MMIO) Cycles: %0d", tb_didactic.i_didactic.SystemControl_SS.SysCtrl_SS.i_dmem.ram[1]);
+    $display("[TB]   Accelerator Compute Cycles: %0d", tb_didactic.i_didactic.SystemControl_SS.SysCtrl_SS.i_dmem.ram[0]);
+    $display("==================================================");
 
     // ----------------------------------------------------------
     // Read output directly from accelerator obuf (no UART TX needed)
