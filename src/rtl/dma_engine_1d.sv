@@ -33,6 +33,9 @@ module dma_engine_1d #(
     output logic                    irq_o
 );
 
+// ==================================================
+// APB
+// ==================================================
 localparam logic [11:0] ADDR_DMA_SRC       = 12'h00;
 localparam logic [11:0] ADDR_DMA_DST       = 12'h04;
 localparam logic [11:0] ADDR_DMA_LEN       = 12'h08;
@@ -47,6 +50,60 @@ logic                  reg_irq_en;
 logic                  reg_busy;
 logic                  reg_done;
 
+// Write from CPU
+always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+        reg_src_addr <= '0;
+        reg_dst_addr <= '0;
+        reg_len      <= '0;
+        reg_irq_en   <= 1'b0;
+        reg_start    <= 1'b0;
+        reg_done     <= 1'b0;
+    end else begin
+        reg_start <= 1'b0; // Start lasts one cycle only
+
+        // Clear done flag when a new transfer is triggered
+        if (reg_start) begin
+            reg_done <= 1'b0;
+        end else if (state_q == ST_DONE) begin
+            reg_done <= 1'b1;
+        end
+
+        if (psel_i && penable_i && pwrite_i) begin
+            case (paddr_i)
+                ADDR_DMA_SRC:       reg_src_addr <= pwdata_i;
+                ADDR_DMA_DST:       reg_dst_addr <= pwdata_i;
+                ADDR_DMA_LEN:       reg_len      <= pwdata_i;
+                ADDR_DMA_CTRL_STAT: begin
+                    reg_start  <= pwdata_i[0]; // Bit 0: START
+                    reg_irq_en <= pwdata_i[2]; // Bit 2: IRQ_EN
+                    if (pwdata_i[3]) // Bit 3: W1C (Write-1-to-clear) per DONE
+                        reg_done <= 1'b0;
+                end
+            endcase
+        end
+    end
+end
+
+// Read from CPU
+always_comb begin
+    case (paddr_i)
+        ADDR_DMA_SRC:       prdata_o = reg_src_addr;
+        ADDR_DMA_DST:       prdata_o = reg_dst_addr;
+        ADDR_DMA_LEN:       prdata_o = reg_len;
+        ADDR_DMA_CTRL_STAT: prdata_o = {28'b0, reg_done, reg_irq_en, reg_busy, 1'b0};
+        default:            prdata_o = '0;
+    endcase
+end
+
+assign pready_o  = 1'b1;
+assign pslverr_o = 1'b0;
+assign irq_o = reg_done && reg_irq_en;
+assign reg_busy = (state_q != ST_IDLE);
+
+// ==================================================
+// FSM
+// ==================================================
 typedef enum logic [2:0] {
     ST_IDLE,
     ST_READ_REQ,
@@ -56,13 +113,14 @@ typedef enum logic [2:0] {
     ST_DONE
 } dma_state_t;
 
+// FSM registers
 dma_state_t state_q, state_d;
-
 logic [ADDR_WIDTH-1:0] cur_src_q, cur_src_d;
 logic [ADDR_WIDTH-1:0] cur_dst_q, cur_dst_d;
 logic [31:0]           words_left_q, words_left_d;
 logic [DATA_WIDTH-1:0] hold_data_q, hold_data_d;
 
+// Combinational logic of the FSM
 always_comb begin 
     state_d      = state_q;
     cur_src_d    = cur_src_q;
@@ -106,6 +164,7 @@ always_comb begin
     endcase
 end
 
+// Sequential logic for the FSM
 always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
         state_q      <= ST_IDLE;
