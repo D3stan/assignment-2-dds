@@ -15,13 +15,21 @@
 /* ------------------------------------------------------------------ */
 /* Accelerator register addresses (Student_area_0 @ 0x01050000)       */
 /* ------------------------------------------------------------------ */
-#define ACCEL_BASE      0x01050000u
+#define ACCEL_BASE          0x01050000u
+#define ACCEL_CSR           ((volatile uint32_t *)(ACCEL_BASE + 0x00u))
+#define ACCEL_DMA_SRC       ((volatile uint32_t *)(ACCEL_BASE + 0x04u))
+#define ACCEL_DMA_LEN       ((volatile uint32_t *)(ACCEL_BASE + 0x08u))
+#define ACCEL_DMA_CTRL_STAT ((volatile uint32_t *)(ACCEL_BASE + 0x0Cu))
+#define ACCEL_OBUF_ADDR     ((volatile uint32_t *)(ACCEL_BASE + 0x10u))
+#define ACCEL_OBUF_DATA     ((volatile uint32_t *)(ACCEL_BASE + 0x14u))
 
-#define ACCEL_CSR       ((volatile uint32_t *)(ACCEL_BASE + 0x00u))
-#define ACCEL_IBUF_ADDR ((volatile uint32_t *)(ACCEL_BASE + 0x04u))
-#define ACCEL_IBUF_DATA ((volatile uint32_t *)(ACCEL_BASE + 0x08u))
-#define ACCEL_OBUF_ADDR ((volatile uint32_t *)(ACCEL_BASE + 0x0Cu))
-#define ACCEL_OBUF_DATA ((volatile uint32_t *)(ACCEL_BASE + 0x10u))
+/* DMA CTRL_STAT bit positions */
+#define DMA_CTRL_START      (1u << 0)
+#define DMA_CTRL_BUSY       (1u << 1)
+#define DMA_CTRL_IRQ_EN     (1u << 2)
+#define DMA_CTRL_DONE       (1u << 3)
+#define DMA_CTRL_SRC_INC    (1u << 4)
+#define DMA_CTRL_DST_INC    (1u << 5)
 
 /* CSR bit positions */
 #define CSR_DATA_READY  (1u << 0)
@@ -51,6 +59,8 @@ static inline void uart_write_byte(uint8_t b)
     RBR_THR_DLL = b;
 }
 
+static uint32_t image_buffer[BUF_DEPTH];
+
 int main(void)
 {
     ss_init(0);
@@ -59,7 +69,7 @@ int main(void)
 
     /* Main command loop:
      *   't' -> ping, reply 'y'
-     *   'w' -> receive image into ibuf, run accelerator
+     *   'w' -> receive image into DMEM, transfer to ibuf via DMA, run accelerator
      *   'r' -> send obuf back over UART (only if processing is done)
      */
     uint8_t result_ready = 0u;
@@ -71,14 +81,22 @@ int main(void)
 
         } else if (cmd == 'w') {
             result_ready = 0u;
-            *ACCEL_IBUF_ADDR = 0u;
             for (uint32_t i = 0u; i < BUF_DEPTH; i++) {
                 uint32_t word = (uint32_t)uart_read_byte()
                               | ((uint32_t)uart_read_byte() <<  8)
                               | ((uint32_t)uart_read_byte() << 16)
                               | ((uint32_t)uart_read_byte() << 24);
-                *ACCEL_IBUF_DATA = word;
+                image_buffer[i] = word;
             }
+
+            /* Transfer image from DMEM to ibuf via DMA */
+            *ACCEL_DMA_SRC = (uint32_t)image_buffer;
+            *ACCEL_DMA_LEN = BUF_DEPTH;
+            *ACCEL_DMA_CTRL_STAT = DMA_CTRL_START | DMA_CTRL_SRC_INC | DMA_CTRL_DST_INC;
+
+            /* Wait for DMA transfer to complete */
+            while (!(*ACCEL_DMA_CTRL_STAT & DMA_CTRL_DONE)) {}
+
             *ACCEL_CSR = CSR_DATA_READY;
             while (!(*ACCEL_CSR & CSR_DONE)) {}
             result_ready = 1u;
