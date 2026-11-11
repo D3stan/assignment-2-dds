@@ -149,23 +149,65 @@ always_comb begin
         end
 
         ST_READ_REQ: begin
+            obi_req_o    = 1'b1;
+            obi_addr_o   = cur_src_q;
+            obi_we_o     = 1'b0;
+            obi_rready_o = 1'b1;
 
+            if (obi_gnt_i) begin
+                state_d = ST_READ_WAIT;
+            end
         end
 
         ST_READ_WAIT: begin
+            obi_rready_o = 1'b1;
 
+            if (obi_rvalid_i) begin
+                if (obi_err_i) begin
+                    state_d = ST_IDLE;
+                end else begin
+                    hold_data_d = obi_rdata_i;
+
+                    state_d     = ST_WRITE_REQ;
+                end
+            end
         end
 
         ST_WRITE_REQ: begin
+            obi_req_o    = 1'b1;
+            obi_addr_o   = cur_dst_q;
+            obi_we_o     = 1'b1;
+            obi_be_o     = '1;
+            obi_wdata_o  = hold_data_q;
+            obi_rready_o = 1'b1;
 
+            if (obi_gnt_i) begin
+                state_d = ST_WRITE_WAIT;
+            end
         end
 
         ST_WRITE_WAIT: begin
+            obi_rready_o = 1'b1;
 
+            if (obi_rvalid_i) begin
+                if (obi_err_i) begin
+                    state_d = ST_IDLE;
+                end else begin
+                    cur_src_d    = cur_src_q + 4;
+                    cur_dst_d    = cur_dst_d + 4;
+                    words_left_d = words_left_q - 1;
+
+                    if (words_left_q == 1) begin
+                        state_d = ST_DONE;
+                    end else begin
+                        state_d = ST_READ_REQ;
+                    end
+                end
+            end
         end
 
         ST_DONE: begin
-
+            state_d = ST_IDLE;
         end
 
         default: state_d = ST_IDLE;
