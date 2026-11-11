@@ -44,7 +44,19 @@ module Student_SS_0_0 #(
     // Interface: pmod_gpio
     input  logic         [15:0]         pmod_gpi,
     output logic         [15:0]         pmod_gpio_oe,
-    output logic         [15:0]         pmod_gpo
+    output logic         [15:0]         pmod_gpo,
+
+    // Interface: OBI Master (DMA)
+    output logic                        obi_req_o,
+    output logic         [31:0]         obi_addr_o,
+    output logic                        obi_we_o,
+    output logic         [3:0]          obi_be_o,
+    output logic         [31:0]         obi_wdata_o,
+    input  logic                        obi_gnt_i,
+    output logic                        obi_rready_o,
+    input  logic                        obi_rvalid_i,
+    input  logic         [31:0]         obi_rdata_i,
+    input  logic                        obi_err_i
 );
 
     // ss_cg_clk_in_to_Clock wires:
@@ -188,7 +200,18 @@ module Student_SS_0_0 #(
         .pmod_gpio_oe        (Student_area_0_pmod_gpio_oe),
         .pmod_gpo            (Student_area_0_pmod_gpo),
         // Interface: reset
-        .rst                 (Student_area_0_rst));
+        .rst                 (Student_area_0_rst),
+        // Interface: OBI Master (DMA)
+        .obi_req_o           (obi_req_o),
+        .obi_addr_o          (obi_addr_o),
+        .obi_we_o            (obi_we_o),
+        .obi_be_o            (obi_be_o),
+        .obi_wdata_o         (obi_wdata_o),
+        .obi_gnt_i           (obi_gnt_i),
+        .obi_rready_o        (obi_rready_o),
+        .obi_rvalid_i        (obi_rvalid_i),
+        .obi_rdata_i         (obi_rdata_i),
+        .obi_err_i           (obi_err_i));
 
     // IP-XACT VLNV: tuni.fi:tech:tech_cg:1.0
     tech_cg ss_cg(
