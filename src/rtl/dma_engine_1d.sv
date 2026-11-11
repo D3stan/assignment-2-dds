@@ -67,6 +67,8 @@ module dma_engine_1d #(
     logic                  reg_irq_en;
     logic                  reg_busy;
     logic                  reg_done;
+    logic                  reg_src_inc; // 1 = increment cur_src (+4), 0 = fixed address (FIFO)
+    logic                  reg_dst_inc; // 1 = increment cur_dst (+4), 0 = fixed address (FIFO)
 
     // Write from CPU
     always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -77,6 +79,8 @@ module dma_engine_1d #(
             reg_irq_en   <= 1'b0;
             reg_start    <= 1'b0;
             reg_done     <= 1'b0;
+            reg_src_inc  <= 1'b1; // Default: linear memory
+            reg_dst_inc  <= 1'b1; // Default: linear memory
         end else begin
             reg_start <= 1'b0; // Start lasts one cycle only
 
@@ -93,10 +97,12 @@ module dma_engine_1d #(
                     ADDR_DMA_DST:       reg_dst_addr <= pwdata_i;
                     ADDR_DMA_LEN:       reg_len      <= pwdata_i;
                     ADDR_DMA_CTRL_STAT: begin
-                        reg_start  <= pwdata_i[0]; // Bit 0: START
-                        reg_irq_en <= pwdata_i[2]; // Bit 2: IRQ_EN
-                        if (pwdata_i[3]) // Bit 3: W1C (Write-1-to-clear) per DONE
+                        reg_start   <= pwdata_i[0]; // Bit 0: START
+                        reg_irq_en  <= pwdata_i[2]; // Bit 2: IRQ_EN
+                        if (pwdata_i[3])            // Bit 3: W1C (Write-1-to-clear) per DONE
                             reg_done <= 1'b0;
+                        reg_src_inc <= pwdata_i[4]; // Bit 4: SRC_INC
+                        reg_dst_inc <= pwdata_i[5]; // Bit 5: DST_INC
                     end
                 endcase
             end
@@ -110,7 +116,7 @@ module dma_engine_1d #(
             ADDR_DMA_DST:       prdata_o = reg_dst_addr;
             ADDR_DMA_LEN:       prdata_o = reg_len;
             // We don't need to read the start again (bit 0 is 0)
-            ADDR_DMA_CTRL_STAT: prdata_o = {28'b0, reg_done, reg_irq_en, reg_busy, 1'b0};
+            ADDR_DMA_CTRL_STAT: prdata_o = {26'b0, reg_dst_inc, reg_src_inc, reg_done, reg_irq_en, reg_busy, 1'b0};
             default:            prdata_o = '0;
         endcase
     end
@@ -195,8 +201,8 @@ module dma_engine_1d #(
                     if (obi_err_i) begin
                         state_d = ST_IDLE;
                     end else begin
-                        cur_src_d    = cur_src_q + 4;
-                        cur_dst_d    = cur_dst_q + 4;
+                        cur_src_d    = reg_src_inc ? (cur_src_q + 4) : cur_src_q;
+                        cur_dst_d    = reg_dst_inc ? (cur_dst_q + 4) : cur_dst_q;
                         words_left_d = words_left_q - 1;
 
                         if (words_left_q == 1) begin
