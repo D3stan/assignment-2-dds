@@ -33,200 +33,203 @@ module dma_engine_1d #(
     output logic                    irq_o
 );
 
-// ==================================================
-// APB
-// ==================================================
-localparam logic [11:0] ADDR_DMA_SRC       = 12'h00;
-localparam logic [11:0] ADDR_DMA_DST       = 12'h04;
-localparam logic [11:0] ADDR_DMA_LEN       = 12'h08;
-localparam logic [11:0] ADDR_DMA_CTRL_STAT = 12'h0C;
+    // ==================================================
+    // FSM states and registers
+    // ==================================================
+    typedef enum logic [2:0] {
+        ST_IDLE,
+        ST_READ_REQ,
+        ST_READ_WAIT,
+        ST_WRITE_REQ,
+        ST_WRITE_WAIT,
+        ST_DONE
+    } dma_state_t;
 
-// Internal registers of DMA
-logic [ADDR_WIDTH-1:0] reg_src_addr;
-logic [ADDR_WIDTH-1:0] reg_dst_addr;
-logic [31:0]           reg_len;
-logic                  reg_start;
-logic                  reg_irq_en;
-logic                  reg_busy;
-logic                  reg_done;
+    dma_state_t state_q, state_d;
+    logic [ADDR_WIDTH-1:0] cur_src_q, cur_src_d;
+    logic [ADDR_WIDTH-1:0] cur_dst_q, cur_dst_d;
+    logic [31:0]           words_left_q, words_left_d;
+    logic [DATA_WIDTH-1:0] hold_data_q, hold_data_d;
 
-// Write from CPU
-always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-        reg_src_addr <= '0;
-        reg_dst_addr <= '0;
-        reg_len      <= '0;
-        reg_irq_en   <= 1'b0;
-        reg_start    <= 1'b0;
-        reg_done     <= 1'b0;
-    end else begin
-        reg_start <= 1'b0; // Start lasts one cycle only
+    // ==================================================
+    // APB
+    // ==================================================
+    localparam logic [11:0] ADDR_DMA_SRC       = 12'h00;
+    localparam logic [11:0] ADDR_DMA_DST       = 12'h04;
+    localparam logic [11:0] ADDR_DMA_LEN       = 12'h08;
+    localparam logic [11:0] ADDR_DMA_CTRL_STAT = 12'h0C;
 
-        // Clear done flag when a new transfer is triggered
-        if (reg_start) begin
-            reg_done <= 1'b0;
-        end else if (state_q == ST_DONE) begin
-            reg_done <= 1'b1;
-        end
+    // Internal registers of DMA
+    logic [ADDR_WIDTH-1:0] reg_src_addr;
+    logic [ADDR_WIDTH-1:0] reg_dst_addr;
+    logic [31:0]           reg_len;
+    logic                  reg_start;
+    logic                  reg_irq_en;
+    logic                  reg_busy;
+    logic                  reg_done;
 
-        if (psel_i && penable_i && pwrite_i) begin
-            case (paddr_i)
-                ADDR_DMA_SRC:       reg_src_addr <= pwdata_i;
-                ADDR_DMA_DST:       reg_dst_addr <= pwdata_i;
-                ADDR_DMA_LEN:       reg_len      <= pwdata_i;
-                ADDR_DMA_CTRL_STAT: begin
-                    reg_start  <= pwdata_i[0]; // Bit 0: START
-                    reg_irq_en <= pwdata_i[2]; // Bit 2: IRQ_EN
-                    if (pwdata_i[3]) // Bit 3: W1C (Write-1-to-clear) per DONE
-                        reg_done <= 1'b0;
-                end
-            endcase
+    // Write from CPU
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+            reg_src_addr <= '0;
+            reg_dst_addr <= '0;
+            reg_len      <= '0;
+            reg_irq_en   <= 1'b0;
+            reg_start    <= 1'b0;
+            reg_done     <= 1'b0;
+        end else begin
+            reg_start <= 1'b0; // Start lasts one cycle only
+
+            // Clear done flag when a new transfer is triggered
+            if (reg_start) begin
+                reg_done <= 1'b0;
+            end else if (state_q == ST_DONE) begin
+                reg_done <= 1'b1;
+            end
+
+            if (psel_i && penable_i && pwrite_i) begin
+                case (paddr_i)
+                    ADDR_DMA_SRC:       reg_src_addr <= pwdata_i;
+                    ADDR_DMA_DST:       reg_dst_addr <= pwdata_i;
+                    ADDR_DMA_LEN:       reg_len      <= pwdata_i;
+                    ADDR_DMA_CTRL_STAT: begin
+                        reg_start  <= pwdata_i[0]; // Bit 0: START
+                        reg_irq_en <= pwdata_i[2]; // Bit 2: IRQ_EN
+                        if (pwdata_i[3]) // Bit 3: W1C (Write-1-to-clear) per DONE
+                            reg_done <= 1'b0;
+                    end
+                endcase
+            end
         end
     end
-end
 
-// Read from CPU
-always_comb begin
-    case (paddr_i)
-        ADDR_DMA_SRC:       prdata_o = reg_src_addr;
-        ADDR_DMA_DST:       prdata_o = reg_dst_addr;
-        ADDR_DMA_LEN:       prdata_o = reg_len;
-        // We don't need to read the start again (bit 0 is 0)
-        ADDR_DMA_CTRL_STAT: prdata_o = {28'b0, reg_done, reg_irq_en, reg_busy, 1'b0};
-        default:            prdata_o = '0;
-    endcase
-end
+    // Read from CPU
+    always_comb begin
+        case (paddr_i)
+            ADDR_DMA_SRC:       prdata_o = reg_src_addr;
+            ADDR_DMA_DST:       prdata_o = reg_dst_addr;
+            ADDR_DMA_LEN:       prdata_o = reg_len;
+            // We don't need to read the start again (bit 0 is 0)
+            ADDR_DMA_CTRL_STAT: prdata_o = {28'b0, reg_done, reg_irq_en, reg_busy, 1'b0};
+            default:            prdata_o = '0;
+        endcase
+    end
 
-assign pready_o  = 1'b1;
-assign pslverr_o = 1'b0;
-assign irq_o = reg_done && reg_irq_en;
+    assign pready_o  = 1'b1;
+    assign pslverr_o = 1'b0;
+    assign irq_o = reg_done && reg_irq_en;
 
-// ==================================================
-// FSM
-// ==================================================
-assign reg_busy = (state_q != ST_IDLE);
+    // ==================================================
+    // FSM implementation
+    // ==================================================
+    assign reg_busy = (state_q != ST_IDLE);
 
-typedef enum logic [2:0] {
-    ST_IDLE,
-    ST_READ_REQ,
-    ST_READ_WAIT,
-    ST_WRITE_REQ,
-    ST_WRITE_WAIT,
-    ST_DONE
-} dma_state_t;
+    // Combinational logic of the FSM
+    always_comb begin 
+        state_d      = state_q;
+        cur_src_d    = cur_src_q;
+        cur_dst_d    = cur_dst_q;
+        words_left_d = words_left_q;
+        hold_data_d  = hold_data_q;
 
-// FSM registers
-dma_state_t state_q, state_d;
-logic [ADDR_WIDTH-1:0] cur_src_q, cur_src_d;
-logic [ADDR_WIDTH-1:0] cur_dst_q, cur_dst_d;
-logic [31:0]           words_left_q, words_left_d;
-logic [DATA_WIDTH-1:0] hold_data_q, hold_data_d;
+        obi_req_o    = 1'b0;
+        obi_addr_o   = '0;
+        obi_we_o     = 1'b0;
+        obi_be_o     = '1;
+        obi_wdata_o  = '0;
+        obi_rready_o = 1'b0;
 
-// Combinational logic of the FSM
-always_comb begin 
-    state_d      = state_q;
-    cur_src_d    = cur_src_q;
-    cur_dst_d    = cur_dst_q;
-    words_left_d = words_left_q;
-    hold_data_d  = hold_data_q;
+        case (state_q)
+            ST_IDLE: begin
+                if (reg_start && reg_len > 0) begin
+                    cur_src_d    = reg_src_addr;
+                    cur_dst_d    = reg_dst_addr;
+                    words_left_d = reg_len;
 
-    obi_req_o    = 1'b0;
-    obi_addr_o   = '0;
-    obi_we_o     = 1'b0;
-    obi_be_o     = '1;
-    obi_wdata_o  = '0;
-    obi_rready_o = 1'b0;
-
-    case (state_q)
-        ST_IDLE: begin
-            if (reg_start && reg_len > 0) begin
-                cur_src_d    = reg_src_addr;
-                cur_dst_d    = reg_dst_addr;
-                words_left_d = reg_len;
-
-                state_d      = ST_READ_REQ;
-            end
-        end
-
-        ST_READ_REQ: begin
-            obi_req_o    = 1'b1;
-            obi_addr_o   = cur_src_q;
-            obi_we_o     = 1'b0;
-            obi_rready_o = 1'b1;
-
-            if (obi_gnt_i) begin
-                state_d = ST_READ_WAIT;
-            end
-        end
-
-        ST_READ_WAIT: begin
-            obi_rready_o = 1'b1;
-
-            if (obi_rvalid_i) begin
-                if (obi_err_i) begin
-                    state_d = ST_IDLE;
-                end else begin
-                    hold_data_d = obi_rdata_i;
-
-                    state_d     = ST_WRITE_REQ;
+                    state_d      = ST_READ_REQ;
                 end
             end
-        end
 
-        ST_WRITE_REQ: begin
-            obi_req_o    = 1'b1;
-            obi_addr_o   = cur_dst_q;
-            obi_we_o     = 1'b1;
-            obi_be_o     = '1;
-            obi_wdata_o  = hold_data_q;
-            obi_rready_o = 1'b1;
+            ST_READ_REQ: begin
+                obi_req_o    = 1'b1;
+                obi_addr_o   = cur_src_q;
+                obi_we_o     = 1'b0;
+                obi_rready_o = 1'b1;
 
-            if (obi_gnt_i) begin
-                state_d = ST_WRITE_WAIT;
+                if (obi_gnt_i) begin
+                    state_d = ST_READ_WAIT;
+                end
             end
-        end
 
-        ST_WRITE_WAIT: begin
-            obi_rready_o = 1'b1;
+            ST_READ_WAIT: begin
+                obi_rready_o = 1'b1;
 
-            if (obi_rvalid_i) begin
-                if (obi_err_i) begin
-                    state_d = ST_IDLE;
-                end else begin
-                    cur_src_d    = cur_src_q + 4;
-                    cur_dst_d    = cur_dst_d + 4;
-                    words_left_d = words_left_q - 1;
-
-                    if (words_left_q == 1) begin
-                        state_d = ST_DONE;
+                if (obi_rvalid_i) begin
+                    if (obi_err_i) begin
+                        state_d = ST_IDLE;
                     end else begin
-                        state_d = ST_READ_REQ;
+                        hold_data_d = obi_rdata_i;
+
+                        state_d     = ST_WRITE_REQ;
                     end
                 end
             end
-        end
 
-        ST_DONE: begin
-            state_d = ST_IDLE;
-        end
+            ST_WRITE_REQ: begin
+                obi_req_o    = 1'b1;
+                obi_addr_o   = cur_dst_q;
+                obi_we_o     = 1'b1;
+                obi_be_o     = '1;
+                obi_wdata_o  = hold_data_q;
+                obi_rready_o = 1'b1;
 
-        default: state_d = ST_IDLE;
-    endcase
-end
+                if (obi_gnt_i) begin
+                    state_d = ST_WRITE_WAIT;
+                end
+            end
 
-// Sequential logic for the FSM
-always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-        state_q      <= ST_IDLE;
-        cur_src_q    <= '0;
-        cur_dst_q    <= '0;
-        words_left_q <= '0;
-        hold_data_q  <= '0;
-    end else begin
-        state_q      <= state_d;
-        cur_src_q    <= cur_src_d;
-        cur_dst_q    <= cur_dst_d;
-        words_left_q <= words_left_d;
-        hold_data_q  <= hold_data_d;
+            ST_WRITE_WAIT: begin
+                obi_rready_o = 1'b1;
+
+                if (obi_rvalid_i) begin
+                    if (obi_err_i) begin
+                        state_d = ST_IDLE;
+                    end else begin
+                        cur_src_d    = cur_src_q + 4;
+                        cur_dst_d    = cur_dst_q + 4;
+                        words_left_d = words_left_q - 1;
+
+                        if (words_left_q == 1) begin
+                            state_d = ST_DONE;
+                        end else begin
+                            state_d = ST_READ_REQ;
+                        end
+                    end
+                end
+            end
+
+            ST_DONE: begin
+                state_d = ST_IDLE;
+            end
+
+            default: state_d = ST_IDLE;
+        endcase
     end
-end
+
+    // Sequential logic for the FSM
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+            state_q      <= ST_IDLE;
+            cur_src_q    <= '0;
+            cur_dst_q    <= '0;
+            words_left_q <= '0;
+            hold_data_q  <= '0;
+        end else begin
+            state_q      <= state_d;
+            cur_src_q    <= cur_src_d;
+            cur_dst_q    <= cur_dst_d;
+            words_left_q <= words_left_d;
+            hold_data_q  <= hold_data_d;
+        end
+    end
+endmodule
