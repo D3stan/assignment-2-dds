@@ -49,6 +49,17 @@ module Student_area_0 #(
     // Interface: IRQ
     output logic                irq,
 
+    output logic                obi_req_o,
+    output logic [31:0]         obi_addr_o,
+    output logic                obi_we_o,
+    output logic [3:0]          obi_be_o,
+    output logic [31:0]         obi_wdata_o,
+    input  logic                obi_gnt_i,
+    output logic                obi_rready_o,
+    input  logic                obi_rvalid_i,
+    input  logic [31:0]         obi_rdata_i,
+    input  logic                obi_err_i,
+
     // Unused
     input  logic [7:0]          clk_ctrl,
     input  logic                irq_en,
@@ -61,16 +72,12 @@ module Student_area_0 #(
 // ============================================================
 // Register offsets
 // ============================================================
-localparam logic [APB_AW-1:0] ADDR_CSR       = 'h00;
-localparam logic [APB_AW-1:0] ADDR_IBUF_ADDR = 'h04;
-localparam logic [APB_AW-1:0] ADDR_IBUF_DATA = 'h08;
-localparam logic [APB_AW-1:0] ADDR_OBUF_ADDR = 'h0C;
-localparam logic [APB_AW-1:0] ADDR_OBUF_DATA = 'h10;
-
-localparam logic [APB_AW-1:0] ADDR_DMA_SRC       = 'h20;
-localparam logic [APB_AW-1:0] ADDR_DMA_DST       = 'h24;
-localparam logic [APB_AW-1:0] ADDR_DMA_LEN       = 'h28;
-localparam logic [APB_AW-1:0] ADDR_DMA_CTRL_STAT = 'h2C;
+localparam logic [APB_AW-1:0] ADDR_CSR           = 12'h00;
+localparam logic [APB_AW-1:0] ADDR_DMA_SRC       = 12'h04;
+localparam logic [APB_AW-1:0] ADDR_DMA_LEN       = 12'h08;
+localparam logic [APB_AW-1:0] ADDR_DMA_CTRL_STAT = 12'h0C;
+localparam logic [APB_AW-1:0] ADDR_OBUF_ADDR     = 12'h10;
+localparam logic [APB_AW-1:0] ADDR_OBUF_DATA     = 12'h14;
 
 // Derived parameters
 localparam int PIXELS_PER_WORD = 32 / PIXEL_WIDTH;
@@ -82,7 +89,7 @@ localparam int BUF_AW          = $clog2(BUF_DEPTH);
 logic csr_data_ready, csr_done, csr_busy;
 
 // APB buffer address pointers
-logic [BUF_AW-1:0] ibuf_waddr, obuf_raddr;
+logic [BUF_AW-1:0] obuf_raddr;
 logic              obuf_rd_wait;
 
 // BRAM port wires - ibuf
@@ -98,43 +105,10 @@ logic              obuf_wr_en;
 logic [BUF_AW-1:0] obuf_wr_addr;
 logic [31:0]       obuf_wr_data;
 logic              obuf_rd_en;
-logic [BUF_AW-1:0] obuf_rd_addr;
 logic [31:0]       obuf_rd_data;
 
 // Accelerator handshake
 logic acc_start, acc_finish;
-
-// ============================================================
-// DMA interconnections
-// ============================================================
-logic        dma_psel;
-logic [11:0] dma_paddr;
-logic [31:0] dma_prdata;
-logic        dma_pready;
-logic        dma_pslverr;
-logic        dma_irq;
-
-// OBI
-logic        dma_obi_req;
-logic [31:0] dma_obi_addr;
-logic        dma_obi_we;
-logic [3:0]  dma_obi_be;
-logic [31:0] dma_obi_wdata;
-logic        dma_obi_gnt;
-logic        dma_obi_rready;
-logic        dma_obi_rvalid;
-logic [31:0] dma_obi_rdata;
-logic        dma_obi_err;
-
-// APB decode for DMA CSRs
-assign dma_psel  = PSEL && (PADDR >= ADDR_DMA_SRC && PADDR <= ADDR_DMA_CTRL_STAT);
-assign dma_paddr = PADDR - ADDR_DMA_SRC;
-
-// Default tie-offs for OBI bus (until connected to memory/bus)
-assign dma_obi_gnt    = 1'b0;
-assign dma_obi_rvalid = 1'b0;
-assign dma_obi_rdata  = 32'b0;
-assign dma_obi_err    = 1'b0;
 
 // ============================================================
 // BRAM instances
@@ -160,11 +134,93 @@ bram_sdp #(.DATA_WIDTH(32), .ADDR_WIDTH(BUF_AW), .DEPTH(BUF_DEPTH)) obuf (
 );
 
 // ============================================================
-// APB ibuf write port
+// DMA controller
 // ============================================================
-assign ibuf_wr_en   = PSEL && !PREADY && PWRITE && (PADDR == ADDR_IBUF_DATA);
-assign ibuf_wr_addr = ibuf_waddr;
-assign ibuf_wr_data = PWDATA;
+logic        dma_psel;
+logic [11:0] dma_paddr;
+logic [31:0] dma_prdata;
+logic        dma_pready, dma_pslverr, dma_irq;
+
+assign dma_psel  = PSEL && (PADDR >= ADDR_DMA_SRC && PADDR <= ADDR_DMA_CTRL_STAT);
+assign dma_paddr = (PADDR == ADDR_DMA_SRC)       ? 12'h00 :
+                   (PADDR == ADDR_DMA_LEN)       ? 12'h08 :
+                   (PADDR == ADDR_DMA_CTRL_STAT) ? 12'h0C : 12'h04;
+
+logic        dma_obi_req;
+logic [31:0] dma_obi_addr;
+logic        dma_obi_we;
+logic [3:0]  dma_obi_be;
+logic [31:0] dma_obi_wdata;
+logic        dma_obi_gnt;
+logic        dma_obi_rready;
+logic        dma_obi_rvalid;
+logic [31:0] dma_obi_rdata;
+logic        dma_obi_err;
+dma_engine_1d #(
+    .ADDR_WIDTH (32),
+    .DATA_WIDTH (32)
+) i_dma (
+    .clk_i        (clk_in),
+    .rst_ni       (rst),
+    .psel_i       (dma_psel),
+    .penable_i    (PENABLE),
+    .pwrite_i     (PWRITE),
+    .paddr_i      (dma_paddr),
+    .pwdata_i     (PWDATA),
+    .prdata_o     (dma_prdata),
+    .pready_o     (dma_pready),
+    .pslverr_o    (dma_pslverr),
+    .obi_req_o    (dma_obi_req),
+    .obi_addr_o   (dma_obi_addr),
+    .obi_we_o     (dma_obi_we),
+    .obi_be_o     (dma_obi_be),
+    .obi_wdata_o  (dma_obi_wdata),
+    .obi_gnt_i    (dma_obi_gnt),
+    .obi_rready_o (dma_obi_rready),
+    .obi_rvalid_i (dma_obi_rvalid),
+    .obi_rdata_i  (dma_obi_rdata),
+    .obi_err_i    (dma_obi_err),
+    .irq_o        (dma_irq)
+);
+
+// ============================================================
+// External OBI master (read only) + direct write in ibuf
+// ============================================================
+logic dma_is_writing_q;
+logic dma_wr_ack;
+
+always_ff @(posedge clk_in or negedge rst) begin
+    if (!rst) begin
+        dma_is_writing_q <= 1'b0;
+        dma_wr_ack       <= 1'b0;
+    end else begin
+        if (dma_obi_req && dma_obi_we && dma_obi_gnt) begin
+            dma_is_writing_q <= 1'b1;
+            dma_wr_ack       <= 1'b1;
+        end else begin
+            dma_is_writing_q <= 1'b0;
+            dma_wr_ack       <= 1'b0;
+        end
+    end
+end
+
+// 1. Read from system RAM
+assign obi_req_o    = dma_obi_req && !dma_obi_we;
+assign obi_addr_o   = dma_obi_addr;
+assign obi_we_o     = 1'b0;
+assign obi_be_o     = dma_obi_be;
+assign obi_wdata_o  = '0;
+assign obi_rready_o = dma_obi_rready && !dma_is_writing_q && !dma_obi_we;
+
+// 2. Direct write in ibuf 
+assign ibuf_wr_en   = dma_obi_req && dma_obi_we;
+assign ibuf_wr_addr = dma_obi_addr[BUF_AW+1:2];
+assign ibuf_wr_data = dma_obi_wdata;
+
+assign dma_obi_gnt    = dma_obi_we ? 1'b1 : obi_gnt_i;
+assign dma_obi_rvalid = dma_is_writing_q ? dma_wr_ack : obi_rvalid_i;
+assign dma_obi_rdata  = obi_rdata_i;
+assign dma_obi_err    = dma_is_writing_q ? 1'b0 : obi_err_i;
 
 // ============================================================
 // APB obuf read port
@@ -196,76 +252,35 @@ pixel_acc #(
 );
 
 // ============================================================
-// DMA Engine instance
-// ============================================================
-dma_engine_1d #(
-    .ADDR_WIDTH (32),
-    .DATA_WIDTH (32)
-) i_dma (
-    .clk_i        (clk_in),
-    .rst_ni       (rst),
-
-    // APB slave interface
-    .psel_i       (dma_psel),
-    .penable_i    (PENABLE),
-    .pwrite_i     (PWRITE),
-    .paddr_i      (dma_paddr),
-    .pwdata_i     (PWDATA),
-    .prdata_o     (dma_prdata),
-    .pready_o     (dma_pready),
-    .pslverr_o    (dma_pslverr),
-
-    // OBI master interface
-    .obi_req_o    (dma_obi_req),
-    .obi_addr_o   (dma_obi_addr),
-    .obi_we_o     (dma_obi_we),
-    .obi_be_o     (dma_obi_be),
-    .obi_wdata_o  (dma_obi_wdata),
-    .obi_gnt_i    (dma_obi_gnt),
-
-    .obi_rready_o (dma_obi_rready),
-    .obi_rvalid_i (dma_obi_rvalid),
-    .obi_rdata_i  (dma_obi_rdata),
-    .obi_err_i    (dma_obi_err),
-
-    // Interrupt
-    .irq_o        (dma_irq)
-);
-
-// ============================================================
 // APB register file + control FSM
 // ============================================================
 always_ff @(posedge clk_in or negedge rst) begin
-    if (~rst) begin
+    if (!rst) begin
         PREADY         <= 1'b0;
         PSLVERR        <= 1'b0;
         PRDATA         <= '0;
         csr_data_ready <= 1'b0;
         csr_done       <= 1'b0;
         csr_busy       <= 1'b0;
-        ibuf_waddr     <= '0;
         obuf_raddr     <= '0;
         obuf_rd_wait   <= 1'b0;
         acc_start      <= 1'b0;
     end else begin
-
-        acc_start <= 1'b0;  // pulse for one cycle only
-
-        // ----------------------------------------------------------
-        // APB slave
-        // ----------------------------------------------------------
+        acc_start <= 1'b0;
         if (PSEL) begin
             if (PREADY) begin
                 PREADY <= 1'b0;
+            end else if (dma_psel) begin
+                PREADY  <= dma_pready;
+                PSLVERR <= dma_pslverr;
+                if (!PWRITE) PRDATA <= dma_prdata;
             end else if (!PWRITE && PADDR == ADDR_OBUF_DATA && !obuf_rd_wait) begin
-                // BRAM read latency: stall one cycle so obuf_rd_data is valid
                 obuf_rd_wait <= 1'b1;
                 PREADY       <= 1'b0;
             end else begin
                 PSLVERR      <= 1'b0;
                 PREADY       <= 1'b1;
                 obuf_rd_wait <= 1'b0;
-
                 if (PWRITE) begin
                     case (PADDR)
                         ADDR_CSR: begin
@@ -274,35 +289,17 @@ always_ff @(posedge clk_in or negedge rst) begin
                                 csr_done       <= 1'b0;
                             end
                         end
-                        ADDR_IBUF_ADDR: ibuf_waddr <= PWDATA[BUF_AW-1:0];
-                        ADDR_IBUF_DATA: begin
-                            if (ibuf_waddr < BUF_AW'(BUF_DEPTH - 1))
-                                ibuf_waddr <= ibuf_waddr + 1'b1;
-                        end
                         ADDR_OBUF_ADDR: obuf_raddr <= PWDATA[BUF_AW-1:0];
-                        ADDR_DMA_SRC,
-                        ADDR_DMA_DST,
-                        ADDR_DMA_LEN,
-                        ADDR_DMA_CTRL_STAT: begin
-                            // Managed internally by dma_engine_1d
-                        end
                         default:        PSLVERR <= 1'b1;
                     endcase
                 end else begin
                     case (PADDR)
                         ADDR_CSR:       PRDATA <= 32'({csr_busy, csr_done, csr_data_ready});
-                        ADDR_IBUF_ADDR: PRDATA <= 32'(ibuf_waddr);
                         ADDR_OBUF_ADDR: PRDATA <= 32'(obuf_raddr);
                         ADDR_OBUF_DATA: begin
                             PRDATA <= obuf_rd_data;
                             if (obuf_raddr < BUF_AW'(BUF_DEPTH - 1))
                                 obuf_raddr <= obuf_raddr + 1'b1;
-                        end
-                        ADDR_DMA_SRC,
-                        ADDR_DMA_DST,
-                        ADDR_DMA_LEN,
-                        ADDR_DMA_CTRL_STAT: begin
-                            PRDATA <= dma_prdata;
                         end
                         default: begin
                             PRDATA  <= '0;
@@ -316,25 +313,19 @@ always_ff @(posedge clk_in or negedge rst) begin
             PSLVERR      <= 1'b0;
             obuf_rd_wait <= 1'b0;
         end
-
-        // ----------------------------------------------------------
         // Launch accelerator when DATA_READY is set
-        // ----------------------------------------------------------
         if (csr_data_ready && !csr_busy) begin
             csr_data_ready <= 1'b0;
             csr_busy       <= 1'b1;
             acc_start      <= 1'b1;
         end
-
         if (acc_finish) begin
             csr_busy <= 1'b0;
             csr_done <= 1'b1;
         end
-
     end
 end
-
-assign irq          = (csr_done & irq_en) | dma_irq;
+assign irq          = (csr_done | dma_irq) & irq_en;
 assign pmod_gpo     = 16'h0;
 assign pmod_gpio_oe = 16'h0;
 
