@@ -91,6 +91,7 @@ always_comb begin
         ADDR_DMA_SRC:       prdata_o = reg_src_addr;
         ADDR_DMA_DST:       prdata_o = reg_dst_addr;
         ADDR_DMA_LEN:       prdata_o = reg_len;
+        // We don't need to read the start again (bit 0 is 0)
         ADDR_DMA_CTRL_STAT: prdata_o = {28'b0, reg_done, reg_irq_en, reg_busy, 1'b0};
         default:            prdata_o = '0;
     endcase
@@ -99,11 +100,12 @@ end
 assign pready_o  = 1'b1;
 assign pslverr_o = 1'b0;
 assign irq_o = reg_done && reg_irq_en;
-assign reg_busy = (state_q != ST_IDLE);
 
 // ==================================================
 // FSM
 // ==================================================
+assign reg_busy = (state_q != ST_IDLE);
+
 typedef enum logic [2:0] {
     ST_IDLE,
     ST_READ_REQ,
@@ -137,7 +139,13 @@ always_comb begin
 
     case (state_q)
         ST_IDLE: begin
+            if (reg_start && reg_len > 0) begin
+                cur_src_d    = reg_src_addr;
+                cur_dst_d    = reg_dst_addr;
+                words_left_d = reg_len;
 
+                state_d      = ST_READ_REQ;
+            end
         end
 
         ST_READ_REQ: begin
