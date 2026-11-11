@@ -15,13 +15,21 @@
 /* ------------------------------------------------------------------ */
 /* Accelerator register addresses (Student_area_0 @ 0x01050000)       */
 /* ------------------------------------------------------------------ */
-#define ACCEL_BASE      0x01050000u
+#define ACCEL_BASE          0x01050000u
+#define ACCEL_CSR           ((volatile uint32_t *)(ACCEL_BASE + 0x00u))
+#define ACCEL_DMA_SRC       ((volatile uint32_t *)(ACCEL_BASE + 0x04u))
+#define ACCEL_DMA_LEN       ((volatile uint32_t *)(ACCEL_BASE + 0x08u))
+#define ACCEL_DMA_CTRL_STAT ((volatile uint32_t *)(ACCEL_BASE + 0x0Cu))
+#define ACCEL_OBUF_ADDR     ((volatile uint32_t *)(ACCEL_BASE + 0x10u))
+#define ACCEL_OBUF_DATA     ((volatile uint32_t *)(ACCEL_BASE + 0x14u))
 
-#define ACCEL_CSR       ((volatile uint32_t *)(ACCEL_BASE + 0x00u))
-#define ACCEL_IBUF_ADDR ((volatile uint32_t *)(ACCEL_BASE + 0x04u))
-#define ACCEL_IBUF_DATA ((volatile uint32_t *)(ACCEL_BASE + 0x08u))
-#define ACCEL_OBUF_ADDR ((volatile uint32_t *)(ACCEL_BASE + 0x0Cu))
-#define ACCEL_OBUF_DATA ((volatile uint32_t *)(ACCEL_BASE + 0x10u))
+/* DMA CTRL_STAT bit positions */
+#define DMA_CTRL_START      (1u << 0)
+#define DMA_CTRL_BUSY       (1u << 1)
+#define DMA_CTRL_IRQ_EN     (1u << 2)
+#define DMA_CTRL_DONE       (1u << 3)
+#define DMA_CTRL_SRC_INC    (1u << 4)
+#define DMA_CTRL_DST_INC    (1u << 5)
 
 /* CSR bit positions */
 #define CSR_DATA_READY  (1u << 0)
@@ -65,6 +73,11 @@ static inline void uart_write_byte(uint8_t b)
     RBR_THR_DLL = b;
 }
 
+#ifndef BYPASS_UART
+/* Buffer in DMEM to receive UART image before DMA transfer */
+static uint32_t image_buffer[BUF_DEPTH];
+#endif
+
 int main(void)
 {
     ss_init(0);
@@ -82,19 +95,25 @@ int main(void)
 #endif
 
 #ifndef BYPASS_UART
-    /* Receive image pixel-by-pixel from UART, pack 4 bytes per word,
-     * write directly into ibuf — no DMEM buffering needed. */
+    /* Receive image pixel-by-pixel from UART into DMEM buffer */
     g_cycles_rx_start = rdcycle();
-    *ACCEL_IBUF_ADDR = 0u;
     for (uint32_t i = 0u; i < BUF_DEPTH; i++) {
          uint32_t word = (uint32_t)uart_read_byte()
                        | ((uint32_t)uart_read_byte() <<  8)
                        | ((uint32_t)uart_read_byte() << 16)
                        | ((uint32_t)uart_read_byte() << 24);
-        *ACCEL_IBUF_DATA = word;
+        image_buffer[i] = word;
     }
     g_cycles_rx_end = rdcycle();
     g_cycles_rx_delta = g_cycles_rx_end - g_cycles_rx_start;
+
+    /* Transfer image from DMEM to ibuf via DMA */
+    *ACCEL_DMA_SRC = (uint32_t)image_buffer;
+    *ACCEL_DMA_LEN = BUF_DEPTH;
+    *ACCEL_DMA_CTRL_STAT = DMA_CTRL_START | DMA_CTRL_SRC_INC | DMA_CTRL_DST_INC;
+
+    /* Wait for DMA transfer to complete (bit 3 = DONE) */
+    while (!(*ACCEL_DMA_CTRL_STAT & DMA_CTRL_DONE)) {}
 #endif /* BYPASS_UART: ibuf pre-loaded by testbench */
 
     g_cycles_acc_start = rdcycle();
