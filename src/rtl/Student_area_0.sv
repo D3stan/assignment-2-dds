@@ -67,6 +67,11 @@ localparam logic [APB_AW-1:0] ADDR_IBUF_DATA = 'h08;
 localparam logic [APB_AW-1:0] ADDR_OBUF_ADDR = 'h0C;
 localparam logic [APB_AW-1:0] ADDR_OBUF_DATA = 'h10;
 
+localparam logic [APB_AW-1:0] ADDR_DMA_SRC       = 'h20;
+localparam logic [APB_AW-1:0] ADDR_DMA_DST       = 'h24;
+localparam logic [APB_AW-1:0] ADDR_DMA_LEN       = 'h28;
+localparam logic [APB_AW-1:0] ADDR_DMA_CTRL_STAT = 'h2C;
+
 // Derived parameters
 localparam int PIXELS_PER_WORD = 32 / PIXEL_WIDTH;
 localparam int TOTAL_PIXELS    = FRAME_WIDTH * FRAME_HEIGHT;
@@ -98,6 +103,38 @@ logic [31:0]       obuf_rd_data;
 
 // Accelerator handshake
 logic acc_start, acc_finish;
+
+// ============================================================
+// DMA interconnections
+// ============================================================
+logic        dma_psel;
+logic [11:0] dma_paddr;
+logic [31:0] dma_prdata;
+logic        dma_pready;
+logic        dma_pslverr;
+logic        dma_irq;
+
+// OBI
+logic        dma_obi_req;
+logic [31:0] dma_obi_addr;
+logic        dma_obi_we;
+logic [3:0]  dma_obi_be;
+logic [31:0] dma_obi_wdata;
+logic        dma_obi_gnt;
+logic        dma_obi_rready;
+logic        dma_obi_rvalid;
+logic [31:0] dma_obi_rdata;
+logic        dma_obi_err;
+
+// APB decode for DMA CSRs
+assign dma_psel  = PSEL && (PADDR >= ADDR_DMA_SRC && PADDR <= ADDR_DMA_CTRL_STAT);
+assign dma_paddr = PADDR - ADDR_DMA_SRC;
+
+// Default tie-offs for OBI bus (until connected to memory/bus)
+assign dma_obi_gnt    = 1'b0;
+assign dma_obi_rvalid = 1'b0;
+assign dma_obi_rdata  = 32'b0;
+assign dma_obi_err    = 1'b0;
 
 // ============================================================
 // BRAM instances
@@ -159,6 +196,43 @@ pixel_acc #(
 );
 
 // ============================================================
+// DMA Engine instance
+// ============================================================
+dma_engine_1d #(
+    .ADDR_WIDTH (32),
+    .DATA_WIDTH (32)
+) i_dma (
+    .clk_i        (clk_in),
+    .rst_ni       (rst),
+
+    // APB slave interface
+    .psel_i       (dma_psel),
+    .penable_i    (PENABLE),
+    .pwrite_i     (PWRITE),
+    .paddr_i      (dma_paddr),
+    .pwdata_i     (PWDATA),
+    .prdata_o     (dma_prdata),
+    .pready_o     (dma_pready),
+    .pslverr_o    (dma_pslverr),
+
+    // OBI master interface
+    .obi_req_o    (dma_obi_req),
+    .obi_addr_o   (dma_obi_addr),
+    .obi_we_o     (dma_obi_we),
+    .obi_be_o     (dma_obi_be),
+    .obi_wdata_o  (dma_obi_wdata),
+    .obi_gnt_i    (dma_obi_gnt),
+
+    .obi_rready_o (dma_obi_rready),
+    .obi_rvalid_i (dma_obi_rvalid),
+    .obi_rdata_i  (dma_obi_rdata),
+    .obi_err_i    (dma_obi_err),
+
+    // Interrupt
+    .irq_o        (dma_irq)
+);
+
+// ============================================================
 // APB register file + control FSM
 // ============================================================
 always_ff @(posedge clk_in or negedge rst) begin
@@ -206,6 +280,12 @@ always_ff @(posedge clk_in or negedge rst) begin
                                 ibuf_waddr <= ibuf_waddr + 1'b1;
                         end
                         ADDR_OBUF_ADDR: obuf_raddr <= PWDATA[BUF_AW-1:0];
+                        ADDR_DMA_SRC,
+                        ADDR_DMA_DST,
+                        ADDR_DMA_LEN,
+                        ADDR_DMA_CTRL_STAT: begin
+                            // Managed internally by dma_engine_1d
+                        end
                         default:        PSLVERR <= 1'b1;
                     endcase
                 end else begin
@@ -217,6 +297,12 @@ always_ff @(posedge clk_in or negedge rst) begin
                             PRDATA <= obuf_rd_data;
                             if (obuf_raddr < BUF_AW'(BUF_DEPTH - 1))
                                 obuf_raddr <= obuf_raddr + 1'b1;
+                        end
+                        ADDR_DMA_SRC,
+                        ADDR_DMA_DST,
+                        ADDR_DMA_LEN,
+                        ADDR_DMA_CTRL_STAT: begin
+                            PRDATA <= dma_prdata;
                         end
                         default: begin
                             PRDATA  <= '0;
@@ -248,7 +334,7 @@ always_ff @(posedge clk_in or negedge rst) begin
     end
 end
 
-assign irq          = csr_done & irq_en;
+assign irq          = (csr_done & irq_en) | dma_irq;
 assign pmod_gpo     = 16'h0;
 assign pmod_gpio_oe = 16'h0;
 
