@@ -81,6 +81,31 @@ Didactic i_didactic (
     .jtag_trst(dut_jtag_trst)
 );
 
+// Image buffers
+logic [7:0] pixels_in  [0:TOTAL_PIXELS-1];
+logic [7:0] pixels_out [0:TOTAL_PIXELS-1];
+
+// Stream output capture from accelerator
+int stream_word_idx = 0;
+always @(posedge clk or negedge reset) begin
+    if (!reset) begin
+        stream_word_idx <= 0;
+    end else if (tb_didactic.i_didactic.Student_SS_0.Student_area_0.acc_out_valid) begin
+        pixels_out[stream_word_idx*4+0] <= tb_didactic.i_didactic.Student_SS_0.Student_area_0.acc_out_data[7:0];
+        pixels_out[stream_word_idx*4+1] <= tb_didactic.i_didactic.Student_SS_0.Student_area_0.acc_out_data[15:8];
+        pixels_out[stream_word_idx*4+2] <= tb_didactic.i_didactic.Student_SS_0.Student_area_0.acc_out_data[23:16];
+        pixels_out[stream_word_idx*4+3] <= tb_didactic.i_didactic.Student_SS_0.Student_area_0.acc_out_data[31:24];
+        stream_word_idx <= stream_word_idx + 1;
+    end
+end
+
+// Connect streaming DMA UART wires
+assign tb_didactic.i_didactic.Student_SS_0.Student_area_0.uart_rx_i = dut_uart_rx;
+initial begin
+    #1;
+    force dut_uart_tx = tb_didactic.i_didactic.Student_SS_0.Student_area_0.uart_tx_o;
+end
+
 // ----------------------------------------------------------------
 // UART TX task  (TB -> DUT)
 // ----------------------------------------------------------------
@@ -107,10 +132,6 @@ task automatic uart_recv_byte(output logic [7:0] data);
     end
     #(UART_BIT_NS * 1ns);                    // consume stop bit
 endtask
-
-// Image buffers
-logic [7:0] pixels_in  [0:TOTAL_PIXELS-1];
-logic [7:0] pixels_out [0:TOTAL_PIXELS-1];
 
 // ----------------------------------------------------------------
 // Main test
@@ -197,16 +218,9 @@ initial begin
     $display("[TB] Accelerator done @ %0t ns", $time);
 
     // ----------------------------------------------------------
-    // Read output directly from accelerator obuf (no UART TX needed)
+    // Output verified directly from streaming capture
     // ----------------------------------------------------------
-    for (i = 0; i < TOTAL_PIXELS / 4; i++) begin
-        obuf_word = tb_didactic.i_didactic.Student_SS_0.Student_area_0.obuf.mem[i];
-        pixels_out[i*4+0] = obuf_word[7:0];
-        pixels_out[i*4+1] = obuf_word[15:8];
-        pixels_out[i*4+2] = obuf_word[23:16];
-        pixels_out[i*4+3] = obuf_word[31:24];
-    end
-    $display("[TB] Result read from obuf");
+    $display("[TB] Streaming output captured (%0d words / %0d pixels)", stream_word_idx, stream_word_idx * 4);
 
     // ----------------------------------------------------------
     // Write output PGM (P2 ASCII)

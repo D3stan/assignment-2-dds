@@ -15,17 +15,24 @@
 /* ------------------------------------------------------------------ */
 /* Accelerator register addresses (Student_area_0 @ 0x01050000)       */
 /* ------------------------------------------------------------------ */
-#define ACCEL_BASE      0x01050000u
+#define ACCEL_BASE          0x01050000u
 
-#define ACCEL_CSR       ((volatile uint32_t *)(ACCEL_BASE + 0x00u))
-#define ACCEL_IBUF_ADDR ((volatile uint32_t *)(ACCEL_BASE + 0x04u))
-#define ACCEL_IBUF_DATA ((volatile uint32_t *)(ACCEL_BASE + 0x08u))
-#define ACCEL_OBUF_ADDR ((volatile uint32_t *)(ACCEL_BASE + 0x0Cu))
-#define ACCEL_OBUF_DATA ((volatile uint32_t *)(ACCEL_BASE + 0x10u))
+#define ACCEL_CSR           ((volatile uint32_t *)(ACCEL_BASE + 0x00u))
+#define ACCEL_DMA_CFG       ((volatile uint32_t *)(ACCEL_BASE + 0x04u))
+#define ACCEL_DMA_LEN       ((volatile uint32_t *)(ACCEL_BASE + 0x08u))
+#define ACCEL_DMA_CTRL_STAT ((volatile uint32_t *)(ACCEL_BASE + 0x0Cu))
+#define ACCEL_OBUF_ADDR     ((volatile uint32_t *)(ACCEL_BASE + 0x10u))
+#define ACCEL_OBUF_DATA     ((volatile uint32_t *)(ACCEL_BASE + 0x14u))
 
 /* CSR bit positions */
 #define CSR_DATA_READY  (1u << 0)
 #define CSR_DONE        (1u << 1)
+
+/* DMA CTRL_STAT bit positions */
+#define DMA_CTRL_START  (1u << 0)
+#define DMA_CTRL_BUSY   (1u << 1)
+#define DMA_CTRL_IRQ_EN (1u << 2)
+#define DMA_CTRL_DONE   (1u << 3)
 
 /* ------------------------------------------------------------------ */
 /* Frame geometry                                                      */
@@ -67,31 +74,26 @@ int main(void)
     LCR = 3u;               /* disable DLAB */
 #endif
 
-#ifndef BYPASS_UART
-    /* Receive image pixel-by-pixel from UART, pack 4 bytes per word,
-     * write directly into ibuf — no DMEM buffering needed. */
-    *ACCEL_IBUF_ADDR = 0u;
-    for (uint32_t i = 0u; i < BUF_DEPTH; i++) {
-         uint32_t word = (uint32_t)uart_read_byte()
-                       | ((uint32_t)uart_read_byte() <<  8)
-                       | ((uint32_t)uart_read_byte() << 16)
-                       | ((uint32_t)uart_read_byte() << 24);
-        *ACCEL_IBUF_DATA = word;
+#ifdef SIM_FAST_UART
+    *ACCEL_DMA_CFG = 32u;  /* 32 clocks per bit in fast simulation */
+#else
+    *ACCEL_DMA_CFG = 432u; /* 432 clocks per bit for standard UART */
+#endif
+
+    /* Start DMA streaming transfer for entire frame:
+     * - Ingests UART RX -> DMA Packer -> pixel_acc (streaming in)
+     * - Transmits pixel_acc -> DMA Unpacker -> UART TX (streaming out) */
+    *ACCEL_DMA_LEN = BUF_DEPTH;
+    *ACCEL_DMA_CTRL_STAT = DMA_CTRL_START | DMA_CTRL_IRQ_EN;
+
+    /* Wait for streaming processing to complete (no CPU polling of pixels) */
+    while (!(*ACCEL_DMA_CTRL_STAT & DMA_CTRL_DONE) && !(*ACCEL_CSR & CSR_DONE)) {
+        __asm__ volatile ("wfi");
     }
-#endif /* BYPASS_UART: ibuf pre-loaded by testbench */
 
-    *ACCEL_CSR = CSR_DATA_READY;
-    while (!(*ACCEL_CSR & CSR_DONE)) {}
-
-    /* Send processed pixels back over UART, byte by byte. */
-    // *ACCEL_OBUF_ADDR = 0u;
-    // for (uint32_t i = 0u; i < BUF_DEPTH; i++) {
-    //     uint32_t word = *ACCEL_OBUF_DATA;
-    //     uart_write_byte((uint8_t)(word        & 0xFFu));
-    //     uart_write_byte((uint8_t)((word >>  8) & 0xFFu));
-    //     uart_write_byte((uint8_t)((word >> 16) & 0xFFu));
-    //     uart_write_byte((uint8_t)((word >> 24) & 0xFFu));
-    // }
+    while (1) {
+        __asm__ volatile ("wfi");
+    }
     
     return 0;
 }
