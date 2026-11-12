@@ -83,6 +83,7 @@ logic [31:0] reg_dma_len;
 logic        reg_dma_start_pulse;
 logic        reg_dma_irq_en;
 logic        reg_dma_done;
+logic        reg_dma_done_clr;
 logic        reg_dma_busy;
 
 // CSR status flags
@@ -380,6 +381,11 @@ always_ff @(posedge clk_in or negedge rst) begin
     end else begin
         tx_byte_start <= 1'b0;
 
+        // Clear DMA done on W1C
+        if (reg_dma_done_clr) begin
+            reg_dma_done <= 1'b0;
+        end
+
         // Start DMA trigger
         if (reg_dma_start_pulse) begin
             reg_dma_busy   <= 1'b1;
@@ -489,9 +495,11 @@ always_ff @(posedge clk_in or negedge rst) begin
         reg_dma_len         <= BUF_DEPTH;
         reg_dma_irq_en      <= 1'b0;
         reg_dma_start_pulse <= 1'b0;
+        reg_dma_done_clr    <= 1'b0;
     end else begin
         acc_start           <= 1'b0;
         reg_dma_start_pulse <= 1'b0;
+        reg_dma_done_clr    <= 1'b0;
 
         if (PSEL) begin
             if (PREADY) begin
@@ -519,8 +527,8 @@ always_ff @(posedge clk_in or negedge rst) begin
                             end
                             reg_dma_irq_en <= PWDATA[2]; // Bit 2: IRQ_EN
                             if (PWDATA[3]) begin        // Bit 3: W1C DONE
-                                csr_done     <= 1'b0;
-                                reg_dma_done <= 1'b0;
+                                csr_done         <= 1'b0;
+                                reg_dma_done_clr <= 1'b1;
                             end
                         end
                         default: PSLVERR <= 1'b1;
