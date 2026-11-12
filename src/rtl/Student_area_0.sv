@@ -70,9 +70,9 @@ localparam logic [APB_AW-1:0] ADDR_DMA_CFG       = 12'h04;
 localparam logic [APB_AW-1:0] ADDR_DMA_LEN       = 12'h08;
 localparam logic [APB_AW-1:0] ADDR_DMA_CTRL_STAT = 12'h0C;
 
-// Default baud divisor: 32 cycles for SIM_FAST_UART, 432 for standard 100MHz / 230400
+// Default baud divisor: 2 cycles in fast sim (20ns/bit), 432 for standard 100MHz / 230400
 `ifdef SIM_FAST_UART
-localparam logic [15:0] DEFAULT_CLKS_PER_BIT = 16'd32;
+localparam logic [15:0] DEFAULT_CLKS_PER_BIT = 16'd2;
 `else
 localparam logic [15:0] DEFAULT_CLKS_PER_BIT = 16'd432;
 `endif
@@ -107,13 +107,19 @@ assign pmod_gpio_oe = 16'h0;
 // 1. UART RX Deserializer (Mid-bit sampling)
 // ============================================================
 logic rx_sync_0, rx_sync_1;
+logic rx_activity_seen;
 always_ff @(posedge clk_in or negedge rst) begin
     if (!rst) begin
-        rx_sync_0 <= 1'b1;
-        rx_sync_1 <= 1'b1;
+        rx_sync_0        <= 1'b1;
+        rx_sync_1        <= 1'b1;
+        rx_activity_seen <= 1'b0;
     end else begin
         rx_sync_0 <= uart_rx_i;
         rx_sync_1 <= rx_sync_0;
+        if (!uart_rx_i && !rx_activity_seen) begin
+            rx_activity_seen <= 1'b1;
+            $display("[Student_area_0] First RX activity on uart_rx_i @ %0t", $time);
+        end
     end
 end
 
@@ -144,7 +150,7 @@ always_ff @(posedge clk_in or negedge rst) begin
 
         case (rx_state)
             RX_IDLE: begin
-                if (!rx_sync_1 && reg_dma_busy) begin
+                if (!rx_sync_1) begin
                     // Falling edge of start bit
                     rx_baud_cnt <= (reg_clks_per_bit >> 1) - 1'b1;
                     rx_state    <= RX_START;
@@ -200,6 +206,17 @@ logic [1:0]  rx_byte_cnt;
 logic [31:0] rx_pack_reg;
 logic [31:0] rx_words_left;
 
+always_ff @(posedge clk_in) begin
+    if (rx_byte_valid && rx_byte_cnt == 0)
+        $display("[Student_area_0] Received byte 0x%02x @ %0t", rx_byte, $time);
+    if (acc_word_valid)
+        $display("[Student_area_0] acc_word_valid: 0x%08x (words left=%0d) @ %0t", acc_word_data, rx_words_left, $time);
+    if (acc_out_valid)
+        $display("[Student_area_0] acc_out_valid: 0x%08x @ %0t", acc_out_data, $time);
+    if (acc_finish)
+        $display("[Student_area_0] acc_finish asserted @ %0t", $time);
+end
+
 always_ff @(posedge clk_in or negedge rst) begin
     if (!rst) begin
         rx_byte_cnt    <= '0;
@@ -215,7 +232,7 @@ always_ff @(posedge clk_in or negedge rst) begin
             rx_words_left <= reg_dma_len;
         end
 
-        if (reg_dma_busy && rx_byte_valid) begin
+        if (rx_byte_valid) begin
             case (rx_byte_cnt)
                 2'd0: begin
                     rx_pack_reg[7:0] <= rx_byte;
@@ -551,8 +568,8 @@ always_ff @(posedge clk_in or negedge rst) begin
             PSLVERR <= 1'b0;
         end
 
-        // Auto-launch accelerator when DMA transfer starts
-        if ((csr_data_ready || reg_dma_start_pulse) && !csr_busy) begin
+        // Auto-launch accelerator when DMA transfer starts or when first data arrives
+        if ((csr_data_ready || reg_dma_start_pulse || acc_word_valid) && !csr_busy) begin
             csr_data_ready <= 1'b0;
             csr_busy       <= 1'b1;
             acc_start      <= 1'b1;

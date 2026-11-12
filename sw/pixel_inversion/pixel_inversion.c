@@ -75,7 +75,7 @@ int main(void)
 #endif
 
 #ifdef SIM_FAST_UART
-    *ACCEL_DMA_CFG = 32u;  /* 32 clocks per bit in fast simulation */
+    *ACCEL_DMA_CFG = 2u;   /* 2 clocks per bit (20 ns/bit) in fast simulation */
 #else
     *ACCEL_DMA_CFG = 432u; /* 432 clocks per bit for standard UART */
 #endif

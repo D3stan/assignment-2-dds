@@ -100,9 +100,9 @@ always @(posedge clk or negedge reset) begin
 end
 
 // Connect streaming DMA UART wires
-assign tb_didactic.i_didactic.Student_SS_0.Student_area_0.uart_rx_i = dut_uart_rx;
 initial begin
     #1;
+    force tb_didactic.i_didactic.Student_SS_0.Student_area_0.uart_rx_i = dut_uart_rx;
     force dut_uart_tx = tb_didactic.i_didactic.Student_SS_0.Student_area_0.uart_tx_o;
 end
 
