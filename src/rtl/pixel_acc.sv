@@ -84,7 +84,7 @@ module pixel_acc #(
         .clk                (clk),
         .rst_n              (rst_n),
         .shift_y_en         (yshift_en),
-        .shift_x_en         (xshift_en && in_word_valid),
+        .shift_x_en         (xshift_en),
         // .in_word            (ibuf_rd_data),
         .in_word            (in_word_data),
         .fetch_pos          (cache_fetch_pos),
@@ -190,7 +190,7 @@ module pixel_acc #(
     ) u_addr_incrementer (
         .clk        (clk),
         .rst_n      (rst_n),
-        .rd_inc     (rd_en && in_word_valid),
+        .rd_inc     (rd_en),
         .wr_inc     (wr_en),
         // .rd_addr    (ibuf_rd_addr),
         .rd_col     (),

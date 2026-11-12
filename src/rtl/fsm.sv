@@ -20,7 +20,8 @@ module fsm(
     // control signals
     input logic rd_row_end, // rd_col = 88 ?
     input logic wr_row_end, // wr_col = 87 ?
-    input logic wr_col_end  // wr_row = 287 ?
+    input logic wr_col_end, // wr_row = 287 ?
+    input logic in_word_valid
 );
     typedef enum logic [2:0] {
         IDLE,
@@ -61,37 +62,47 @@ module fsm(
         fetch_int = 2'b0;
         case (state)
             FETCH: begin 
-                rd_inc    = 1'b1;
-                fetch_int = 2'b01;
-                xshift    = 1'b1;
-                if(rd_row_end)
-                    rd_wrap = 1'b1;
+                if (in_word_valid) begin
+                    rd_inc    = 1'b1;
+                    fetch_int = 2'b01;
+                    xshift    = 1'b1;
+                    if(rd_row_end)
+                        rd_wrap = 1'b1;
+                end
             end 
             WAIT_0: begin 
-                rd_inc = 1'b1;
-                fetch_int = 2'b01;
+                if (in_word_valid) begin
+                    rd_inc    = 1'b1;
+                    fetch_int = 2'b01;
+                end
             end
             WAIT_1: begin
-                rd_inc    = 1'b1;
-                fetch_int = 2'b10;
+                if (in_word_valid) begin
+                    rd_inc    = 1'b1;
+                    fetch_int = 2'b10;
+                end
             end 
             WAIT_2: begin 
-                rd_inc    = 1'b1;
-                fetch_int = 2'b10;
+                if (in_word_valid) begin
+                    rd_inc    = 1'b1;
+                    fetch_int = 2'b10;
+                end
             end 
             COMPUTE: begin
-                rd_inc = 1'b1;
-                wr_inc = 1'b1;
-                xshift = 1'b1;
-                fetch_int = 2'b10;
-                
-                if(wr_row_end) begin 
-                    wr_wrap = 1'b1;
-                    rd_wrap = 1'b1;
+                if (in_word_valid) begin
+                    rd_inc    = 1'b1;
+                    wr_inc    = 1'b1;
+                    xshift    = 1'b1;
+                    fetch_int = 2'b10;
+                    
+                    if(wr_row_end) begin 
+                        wr_wrap = 1'b1;
+                        rd_wrap = 1'b1;
+                    end
+                    if (wr_col_end & wr_row_end) begin 
+                        finish = 1'b1;
+                    end 
                 end
-                if (wr_col_end & wr_row_end) begin 
-                    finish = 1'b1;
-                end 
             end
             ALIGN: xshift = 1'b1;
             SHIFT: yshift = 1'b1;
@@ -101,17 +112,19 @@ module fsm(
     always_comb begin
         next_state = state;
         case (state)
-            IDLE:  if (start) next_state = FETCH;
-            FETCH:  if(rd_row_end) next_state = ALIGN;
-            ALIGN: next_state = SHIFT;
-            WAIT_0: next_state = WAIT_1; 
-            WAIT_1: next_state = WAIT_2;
-            WAIT_2: next_state = COMPUTE;
+            IDLE:   if (start) next_state = FETCH;
+            FETCH:  if (in_word_valid && rd_row_end) next_state = ALIGN;
+            ALIGN:  next_state = SHIFT;
+            WAIT_0: if (in_word_valid) next_state = WAIT_1; 
+            WAIT_1: if (in_word_valid) next_state = WAIT_2;
+            WAIT_2: if (in_word_valid) next_state = COMPUTE;
             COMPUTE: begin
-                if (wr_col_end & wr_row_end)
-                    next_state  = IDLE;
-                else if (wr_row_end)
-                    next_state = SHIFT;
+                if (in_word_valid) begin
+                    if (wr_col_end & wr_row_end)
+                        next_state  = IDLE;
+                    else if (wr_row_end)
+                        next_state = SHIFT;
+                end
             end
             SHIFT:   next_state = WAIT_0;
             default: next_state = IDLE;

@@ -42,6 +42,8 @@ module DidacticNexys_A7 #(
 	// Propagate IMEM init file into the sp_sram instance 
 	defparam didactic.SystemControl_SS.SysCtrl_SS.i_imem.INIT_FILE = IMEM_INIT_FILE;
 
+	wire soc_uart_tx;
+
 	// Didactic-SoC top
 	Didactic didactic (
     .clk_in(clk_8MHz),
@@ -56,8 +58,12 @@ module DidacticNexys_A7 #(
     .spi_data(spi_data),
     .spi_sck(spi_sck),
     .uart_rx(uart_rx),
-    .uart_tx(uart_tx)
+    .uart_tx(soc_uart_tx)
   );
+
+  // Direct streaming UART connections for Student_area_0 DMA on FPGA
+  assign didactic.Student_SS_0.Student_area_0.uart_rx_i = uart_rx;
+  assign uart_tx = didactic.Student_SS_0.Student_area_0.uart_tx_o;
 
 endmodule
 
