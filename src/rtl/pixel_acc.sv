@@ -31,19 +31,23 @@ module pixel_acc #(
     input  logic                  clk,
     input  logic                  rst_n,
 
-    // ibuf read port
-    output logic                  ibuf_rd_en,
-    output logic [BUF_AW-1:0]     ibuf_rd_addr,
-    input  logic [31:0]           ibuf_rd_data,
-
-    // obuf write port
-    output logic                  obuf_wr_en,
-    output logic [BUF_AW-1:0]     obuf_wr_addr,
-    output logic [31:0]           obuf_wr_data,
-
     // handshake
     input  logic                  start,
-    output logic                  finish
+    output logic                  finish,
+
+    // ibuf read port
+    // output logic                  ibuf_rd_en,
+    // output logic [BUF_AW-1:0]     ibuf_rd_addr,
+    // input  logic [31:0]           ibuf_rd_data,
+    input  logic                  in_word_valid,
+    input  logic [31:0]           in_word_data,
+
+    // obuf write port
+    // output logic                  obuf_wr_en,
+    // output logic [BUF_AW-1:0]     obuf_wr_addr,
+    // output logic [31:0]           obuf_wr_data,
+    output logic                  out_word_valid,
+    output logic [31:0]           out_word_data
 );
 
     // auxiliary signals
@@ -60,8 +64,7 @@ module pixel_acc #(
     logic rd_wrap;
     logic wr_en;
     logic rd_en;
-    assign obuf_wr_en = wr_en;
-    assign ibuf_rd_en = rd_en;
+    assign out_word_valid = wr_en;
     // ----------------------------------------
     logic [$clog2(IMG_WIDTH)-1:0] wr_col;
     logic [8:0] wr_row;
@@ -81,8 +84,9 @@ module pixel_acc #(
         .clk                (clk),
         .rst_n              (rst_n),
         .shift_y_en         (yshift_en),
-        .shift_x_en         (xshift_en),
-        .in_word            (ibuf_rd_data),
+        .shift_x_en         (xshift_en && in_word_valid),
+        // .in_word            (ibuf_rd_data),
+        .in_word            (in_word_data),
         .fetch_pos          (cache_fetch_pos),
         .output_bits_top    (output_bits_top),
         .output_bits_middle (output_bits_middle),
@@ -92,20 +96,21 @@ module pixel_acc #(
     fsm #(
 
     ) u_fsm (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .rd_en      (rd_en),
-        .wr_en      (wr_en),
-        .start      (start),
-        .finish     (finish),
-        .yshift     (yshift_en), 
-        .xshift     (xshift_en), 
-        .fetch      (cache_fetch_pos),
-        .rd_row_end (rd_row_end),
-        .wr_row_end (wr_row_end),
-        .wr_col_end (wr_col_end),
-        .wr_wrap    (wr_wrap),
-        .rd_wrap    (rd_wrap)
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .rd_en         (rd_en),
+        .wr_en         (wr_en),
+        .start         (start),
+        .finish        (finish),
+        .yshift        (yshift_en), 
+        .xshift        (xshift_en), 
+        .fetch         (cache_fetch_pos),
+        .rd_row_end    (rd_row_end),
+        .wr_row_end    (wr_row_end),
+        .wr_col_end    (wr_col_end),
+        .wr_wrap       (wr_wrap),
+        .rd_wrap       (rd_wrap), 
+        .in_word_valid (in_word_valid)
     );
 
     logic [47:0] strip_top;
@@ -185,12 +190,12 @@ module pixel_acc #(
     ) u_addr_incrementer (
         .clk        (clk),
         .rst_n      (rst_n),
-        .rd_inc     (rd_en),
+        .rd_inc     (rd_en && in_word_valid),
         .wr_inc     (wr_en),
-        .rd_addr    (ibuf_rd_addr),
+        // .rd_addr    (ibuf_rd_addr),
         .rd_col     (),
         .rd_row     (),
-        .wr_addr    (obuf_wr_addr),
+        // .wr_addr    (obuf_wr_addr),
         .wr_col     (wr_col),
         .wr_row     (wr_row),
         .rd_row_end (rd_row_end),
@@ -213,7 +218,7 @@ module pixel_acc #(
         .p20        (pixel0[8*6 +: 8]),
         .p21        (pixel0[8*7 +: 8]),
         .p22        (pixel0[8*8 +: 8]),
-        .pixel_out  (obuf_wr_data[7:0])
+        .pixel_out  (out_word_data[7:0])
     );
 
 
@@ -229,7 +234,7 @@ module pixel_acc #(
         .p20        (pixel1[8*6 +: 8]),
         .p21        (pixel1[8*7 +: 8]),
         .p22        (pixel1[8*8 +: 8]),
-        .pixel_out  (obuf_wr_data[15:8])
+        .pixel_out  (out_word_data[15:8])
     );
 
 
@@ -245,7 +250,7 @@ module pixel_acc #(
         .p20        (pixel2[8*6 +: 8]),
         .p21        (pixel2[8*7 +: 8]),
         .p22        (pixel2[8*8 +: 8]),
-        .pixel_out  (obuf_wr_data[23:16])
+        .pixel_out  (out_word_data[23:16])
     );
 
 
@@ -261,6 +266,6 @@ module pixel_acc #(
         .p20        (pixel3[8*6 +: 8]),
         .p21        (pixel3[8*7 +: 8]),
         .p22        (pixel3[8*8 +: 8]),
-        .pixel_out  (obuf_wr_data[31:24])
+        .pixel_out  (out_word_data[31:24])
     );
 endmodule
