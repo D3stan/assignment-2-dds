@@ -1,0 +1,30 @@
+% --- Color Palette (Defined in Preamble) ---
+
+\section{Introduction} \label{ch1}
+
+Throughout this report, we will analyze the design and implementation of a hardware accelerator capable of applying Sobel filtering to monochromatic images of size 352$\times$288 pixels. The intensity of a pixel is represented by an 8-bit number in the integer range from 0 to 255, where 0 and 255 refer to black and white, respectively.
+
+\subsection{Sobel Filtering}
+
+The Sobel filter is a technique used to detect edges by computing the spatial gradient of an image; it detects sharp changes in brightness, thus highlighting boundaries between objects and backgrounds. It works by using a method called convolution: given a horizontal ($G_x$) and a vertical ($G_y$) kernel
+$$G_x=\begin{bmatrix}
+    -1 & 0 & 1 \\
+    -2 & 0 & 2 \\
+    -1 & 0 & 1 \\
+\end{bmatrix}\quad G_y=\begin{bmatrix}
+    1 & 2 & 1 \\
+    0 & 0 & 0 \\
+    -1 & -2 & -1 \\
+\end{bmatrix}$$
+The values of the derivatives $D_x$ and $D_y$ of a pixel $n$ are computed as convolution.
+\begin{align*}
+    D_x(n)=G_x * S(n)\\
+    D_y(n)=G_y * S(n)
+\end{align*}
+To avoid the use of complex square root circuits, we approximate the length of the gradient with $L1$ magnitude.
+$$|D(n)|=|D_x(n)|+|D_y(n)|$$
+The final value $D(n)$ is then adapted to the $[0,255]$ pixel range.
+
+\subsection{System Overview}
+
+What is the setup?
