@@ -114,13 +114,20 @@ For this task, inspect the provided `src/rtl/Student_area_0.sv`, `src/rtl/pixel_
 
 Run all commands from the project root, `02203-Didactic-SoC/`.
 
-> **Windows:** replace `make` with `make -f Makefile.win` for every command in this guide.
+> **Windows:** Run these commands from PowerShell or Command Prompt at the
+> project root. The Windows makefile runs the RISC-V build and Bender through
+> WSL, while Questa runs natively on Windows.
 
 #### Step 1 - Fetch the hardware dependencies
 
 Run once, after cloning the repository:
 ```bash
 make repository_init
+```
+
+**Windows (PowerShell or Command Prompt):**
+```powershell
+make -f Makefile.win repository_init
 ```
 
 This uses Bender to download the open-source IP the SoC is built from (CPU core, bus, peripherals) into `.bender/` and `vendor_ips/`.
@@ -131,6 +138,11 @@ This uses Bender to download the open-source IP the SoC is built from (CPU core,
 make build_test TEST=pixel_inversion
 ```
 
+**Windows (PowerShell or Command Prompt):**
+```powershell
+make -f Makefile.win build_test TEST=pixel_inversion
+```
+
 This cross-compiles [sw/pixel_inversion/pixel_inversion.c](../sw/pixel_inversion/pixel_inversion.c) and links it into `build/sw/pixel_inversion.elf`, then produces a `.hex` image used to preload instruction memory. A disassembly is left in `build/sw/pixel_inversion.asm` if you want to inspect it. 
 
 > **Note**: If this step fails, your RISC-V toolchain might not be on `PATH`.
@@ -139,6 +151,11 @@ This cross-compiles [sw/pixel_inversion/pixel_inversion.c](../sw/pixel_inversion
 
 ```bash
 make test_ss
+```
+
+**Windows (PowerShell or Command Prompt):**
+```powershell
+make -f Makefile.win test_ss
 ```
 
 This runs the `src/tb/tb_student_ss.sv` testbench against the standalone `Student_area_0` module in batch mode. The testbench:
@@ -158,7 +175,17 @@ The default accelerator inverts pixels, so `pattern_result.pgm` should look like
 make test_ss_gui
 ```
 
+**Windows (PowerShell or Command Prompt):**
+```powershell
+make -f Makefile.win test_ss_gui
+```
+
 Same run, but Questa opens with a preconfigured waveform (`wave_ss.do`). Use this when debugging your own RTL in Task 1. Run `make clean_build` at any time to wipe `build/` and `src/tb/out_images/` and start fresh.
+
+On Windows, run:
+```powershell
+make -f Makefile.win clean_build
+```
 
 > **Keeping the GUI open:** the testbench ends with `$finish`, which makes Questa pop up *"Are you sure you want to finish?"* - choose **No** to keep the window and waveforms up for inspection. If you iterate a lot in GUI, replace `$finish` with `$stop` at the end of `src/tb/tb_student_ss.sv`: the popup no longer appears in GUI mode, but in batch mode (`make test_ss`) the simulation then halts instead of exiting, so you have to quit Questa manually.
 
