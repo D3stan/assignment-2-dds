@@ -1,100 +1,64 @@
-\section{Toolchain Validation with the Reference Design} \label{sec:task0}
+\section{Task 0: Validation of the Reference Design} \label{sec:task0}
 
-Before modifying any RTL, the complete development flow was validated on the unmodified pixel-inversion example shipped with the Didactic-SoC (Task~0). Since the accelerator in our working branch had already been replaced by the Sobel datapath, the reference run was performed in a separate \texttt{git worktree} checked out at commit \texttt{adc19f4}, the last commit of the course staff before any of our changes. In this revision \texttt{pixel\_acc.sv} still computes \texttt{pixel\_out = \textasciitilde ibuf\_rd\_data}, i.e.\ every 8-bit pixel $p$ is replaced by $255-p$. All commands were executed from the repository root on Windows~11 using \texttt{Makefile.win}, which forwards the RISC-V build and Bender to WSL2 and runs Questa natively.
+Before modifying any RTL, the provided pixel-inversion example was run unchanged to confirm that the toolchain (Bender, the RISC-V cross-compiler and Questa) was complete and to obtain a known-good reference for the later Sobel design. In this design \texttt{pixel\_acc.sv} replaces every 8-bit pixel $p$ with $255-p$. All steps of the lab guide were executed on Windows~11 through \texttt{Makefile.win}.
 
-\begin{table}[H]
-\centering
-\caption{Tool versions used for the validation.}
-\label{tab:tools}
-\begin{tabular}{@{}ll@{}}
-\toprule
-Tool & Version \\
-\midrule
-GNU Make (Windows, Chocolatey) & 4.4.1 \\
-Bender (WSL2) & 0.32.1 \\
-\texttt{riscv64-unknown-elf-gcc} (WSL2, Ubuntu) & 13.2.0 \\
-Questa Altera Starter FPGA Edition & 2025.2 (vsim 2025.05) \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{Dependencies and Firmware}
 
-\subsection{Hardware Dependencies}
-
-The command \texttt{make -f Makefile.win repository\_init} runs \texttt{bender update} followed by \texttt{bender vendor init}. It completed without errors in about 43\,s, checking out 11 Bender packages into \texttt{.bender/} (among others \texttt{common\_cells} 1.40.0, \texttt{axi} 0.38.0, \texttt{apb} 0.2.4, \texttt{apb\_uart} 0.2.1, \texttt{register\_interface} 0.3.9, \texttt{riscv-dbg} and \texttt{obi}) and copying four vendored IPs into \texttt{vendor\_ips/}: the Ibex core, the APB/AXI SPI masters and two simulation files from PULP (\texttt{riscv\_pkg.sv} and the \texttt{uart\_tb\_rx} UART verification IP). This confirms that Bender and Git are correctly reachable from WSL2 and that all third-party IP the SoC depends on is available.
-
-\subsection{CPU Firmware Build}
-
-The reference firmware \texttt{sw/pixel\_inversion/pixel\_inversion.c} was cross-compiled with \texttt{make -f Makefile.win build\_test TEST=pixel\_inversion}. Inside WSL2 the flow invokes \texttt{riscv64-unknown-elf-gcc} with \texttt{-march=rv32imc -mabi=ilp32 -O2}, matching the RV32IMC Ibex core, and defines \texttt{SIM\_FAST\_UART}. This define only sets the UART baud divisor to 2 so that the firmware matches the bit timing of the system testbench; the behavioural UART model itself is selected separately on the hardware side (\texttt{SIM\_UART\_MODEL}). The program is linked without a C runtime (\texttt{-nostartfiles -nostdlib}) against the provided \texttt{crt0.S} and \texttt{link.ld}, placing it at the IMEM base address \texttt{0x01000000}.
-
-The build produced \texttt{pixel\_inversion.elf}, a disassembly \texttt{pixel\_inversion.asm} and \texttt{pixel\_inversion.hex}. The resulting program is very small: 680 bytes of \texttt{.text} and no \texttt{.data} or \texttt{.bss}, which become 170 little-endian 32-bit words in the \texttt{.hex} file used to preload the instruction memory. The disassembly shows the expected layout: the interrupt vector table at \texttt{0x01000000}, followed by \texttt{ss\_init} (\texttt{0x0100008c}), \texttt{uart\_init} (\texttt{0x01000126}), \texttt{main} (\texttt{0x01000170}) and the reset handler (\texttt{0x01000222}). The program therefore uses about 4\,\% of the 16\,KiB physical IMEM, or about 17\,\% of the 4\,KiB code region that \texttt{link.ld} actually reserves.
+\texttt{make repository\_init} fetched all hardware dependencies (Ibex core, AXI/APB infrastructure, UART and SPI IPs) into \texttt{.bender/} and \texttt{vendor\_ips/} without errors. \texttt{make build\_test TEST=pixel\_inversion} then cross-compiled the reference firmware for the RV32IMC Ibex core, producing the \texttt{.elf}, the disassembly and the \texttt{.hex} file used to preload the instruction memory. The program occupies only 680 bytes, well within the available IMEM.
 
 \subsection{Standalone Accelerator Simulation}
 
-The accelerator subsystem was then simulated on its own with \texttt{make -f Makefile.win test\_ss}. This flow compiles the RTL with \texttt{vlog}, optimises it with \texttt{vopt} (keeping full signal visibility through \texttt{+acc}) and runs \texttt{tb\_student\_ss.sv} in batch mode with \texttt{vsim}. It does not involve the CPU, so it is independent of the firmware built in the previous step. The testbench acts as an APB master towards \texttt{Student\_area\_0} and performs the following sequence:
-\begin{enumerate}
-    \item read the 352$\times$288 P2 image \texttt{pattern.pgm} (101\,376 pixels);
-    \item reset the input-buffer pointer (\texttt{IBUF\_ADDR}, offset \texttt{0x04}) and write the image as 25\,344 packed 32-bit words to \texttt{IBUF\_DATA} (offset \texttt{0x08}), four pixels per word in little-endian order, with automatic address increment;
-    \item set \texttt{DATA\_READY} (bit~0 of the CSR at offset \texttt{0x00}) and poll \texttt{DONE} (bit~1) until the accelerator finishes;
-    \item reset \texttt{OBUF\_ADDR} (offset \texttt{0x0C}), read the 25\,344 output words from \texttt{OBUF\_DATA} (offset \texttt{0x10}) and write \texttt{pattern\_result.pgm}.
-\end{enumerate}
+\texttt{make test\_ss} runs \texttt{tb\_student\_ss.sv}, which acts as an APB master towards \\ \texttt{Student\_area\_0}: it writes the 352$\times$288 image \texttt{pattern.pgm} into the input buffer (four pixels per 32-bit word), sets \texttt{DATA\_READY}, polls \texttt{DONE} and reads the output buffer back into \texttt{pattern\_result.pgm}. The CPU is not involved.
 
-The run completed successfully: compilation reported 0 errors and 0 warnings, and simulation ended with \texttt{\$finish} at $t = 2\,027\,746$\,ns with 0 errors. The tools reported five \texttt{vopt} warnings: one notice that \texttt{+acc} disables some optimisations, and four about the three PMOD GPIO ports of \texttt{Student\_area\_0} being left unconnected in the testbench. GNU Make also printed 18 harmless ``overriding recipe'' warnings, caused by the way the Windows makefiles delegate to each other (\texttt{sim/Makefile.win} ends up being parsed twice). None of these affects the result. The whole simulation took about 8\,s of wall-clock time.
-
-\paragraph{Functional check.} Since the testbench performs no automatic comparison, the result was checked with a short script that parses both PGM files and compares them pixel by pixel. The output has the same 352$\times$288 geometry, and all 101\,376 pixels satisfy $p_{out} = 255 - p_{in}$ (0 mismatches). Figure~\ref{fig:task0_images} shows the input and the result, which is the expected photographic negative.
+The simulation compiled without errors and reached \texttt{\$finish} with 0 errors. Since the testbench performs no automatic check, the output was compared pixel by pixel with the input: all 101\,376 pixels satisfy $p_{out} = 255 - p_{in}$. Figure~\ref{fig:task0_images} shows the expected photographic negative.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.45\textwidth]{figures/task0_pattern_in.png}\hfill
     \includegraphics[width=0.45\textwidth]{figures/task0_pattern_inverted.png}
-    \caption{Input \texttt{pattern.pgm} (left) and the output of the reference pixel-inversion accelerator (right).}
+    \caption{Input image \texttt{pattern.pgm} (left) and output of the accelerator (right).}
     \label{fig:task0_images}
 \end{figure}
 
-\paragraph{Timing.} To see where the simulated time is spent, the run was repeated with Questa \texttt{when} probes on the CSR \texttt{DATA\_READY} bit and on the \texttt{acc\_start}/\texttt{acc\_finish} pulses, without changing any source file. With a 100\,MHz clock (10\,ns period) the results are given in Table~\ref{tab:task0_timing}.
+Table~\ref{tab:task0_timing} breaks down the simulated time, running at 100\,MHz clock. The accelerator processes one word per cycle, 25\,344 cycles plus two for FSM start and pipeline drain, and takes only about 12.5\,\% of the run. The rest is APB transport. This gives a reference for the Sobel design: with a single 32-bit read port, about 25\,000 cycles is a practical lower bound on processing time.
 
 \begin{table}[H]
 \centering
 \caption{Breakdown of the standalone simulation of the reference design.}
 \label{tab:task0_timing}
-\begin{tabular}{@{}lrrr@{}}
+\begin{tabular}{@{}lrr@{}}
 \toprule
-Phase & Interval [ns] & Cycles & Cycles/word \\
+Phase & Cycles & Cycles/word \\
 \midrule
-Load ibuf over APB & 0 -- 760\,445 & $\approx$ 76\,000 & 3 \\
-Accelerator (\texttt{acc\_start} $\rightarrow$ \texttt{acc\_finish}) & 760\,455 -- 1\,013\,915 & 25\,346 & $\approx$ 1 \\
-Read obuf over APB and write PGM & 1\,013\,915 -- 2\,027\,746 & $\approx$ 101\,400 & 4 \\
+Load input buffer over APB & $\approx$ 76\,000 & 3 \\
+Accelerator (\texttt{start} $\rightarrow$ \texttt{finish}) & 25\,346 & $\approx$ 1 \\
+Read output buffer over APB & $\approx$ 101\,400 & 4 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The inversion accelerator processes one 32-bit word per clock cycle: 25\,344 cycles of streaming plus one cycle for the FSM to leave \texttt{IDLE} after the \texttt{start} pulse and one \texttt{DRAIN} cycle for the word still in flight because of the one-cycle BRAM read latency. This sets a useful reference for the Sobel design. Any accelerator has to read each of the 25\,344 input words at least once and write each output word, so about 25\,000 cycles is a practical lower bound on processing time with a single 32-bit read port. Moreover, the accelerator accounts for only about 12.5\,\% of the total simulated time. The rest is spent moving data over APB, which takes 3 cycles per write and 4 cycles per read because of the extra wait state for the synchronous BRAM read. This confirms that, at the system level, data transport rather than computation dominates.
-
 \subsection{Waveform Inspection}
 
-Finally, the same simulation was opened in the Questa GUI with \texttt{make -f Makefile.win test\_ss\_gui}, which loads the preconfigured waveform \texttt{sim/wave\_ss.do} (APB bus, CSR flags, the BRAM ports and the internal state of \texttt{pixel\_acc}). For the figures, the view was reduced to the most relevant signals, grouped by function (clock, CSR/control, FSM state, ibuf read port, obuf write port and APB). Two windows of the run were examined in detail. The edge times quoted below were also extracted with Questa \texttt{when} probes, which also cover internal signals that are not shown in the figures (\texttt{ibuf\_rd\_en}, \texttt{pipe\_valid}, \texttt{pixel\_out} and the obuf write address).
+\texttt{make test\_ss\_gui} opened the same run in the Questa GUI with the preconfigured \texttt{wave\_ss.do}. The waveforms were used to understand the accelerator interface that the Sobel design must respect.
 
-\paragraph{Start of processing.} Figure~\ref{fig:task0_wave_start} shows the transition from the APB load phase to processing. The APB write of \texttt{0x1} to the CSR sets \texttt{csr\_data\_ready} at $t = 760\,445$\,ns, and \texttt{acc\_start} pulses for one cycle at $760\,455$\,ns. One cycle later (760\,465\,ns) the FSM is in \texttt{PROCESS}, with \texttt{ibuf\_rd\_en} high and \texttt{ibuf\_rd\_addr} incrementing by one every cycle. Because the BRAM has a one-cycle read latency, \texttt{ibuf\_rd\_data} and \texttt{pixel\_out} trail the address by one cycle. \texttt{pipe\_valid} rises at 760\,475\,ns, and since the obuf write port is itself registered, \texttt{obuf\_wr\_en} first goes high at 760\,485\,ns (address 0), two cycles after the first read. From then on it stays high, and \texttt{obuf\_wr\_data} carries the bitwise complement of each word read.
+Figure~\ref{fig:task0_wave_start} shows the start of processing: the CPU-side write of \texttt{DATA\_READY} produces a one-cycle \texttt{acc\_start} pulse, after which the FSM enters \texttt{PROCESS} and increments \texttt{ibuf\_rd\_addr} every cycle. Because of the one-cycle BRAM read latency and the registered write port, the first output word is written two cycles after the first read.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/task0_wave_start.png}
-    \caption{Start of processing: \texttt{DATA\_READY}, the \texttt{acc\_start} pulse and the read/write pipeline of \texttt{pixel\_acc}. The cursor marks the first obuf write at 760\,485\,ns.}
+    \caption{Start of processing: \texttt{DATA\_READY}, the \texttt{acc\_start} pulse and the read/write pipeline of \texttt{pixel\_acc}.}
     \label{fig:task0_wave_start}
 \end{figure}
+
+Figure~\ref{fig:task0_wave_end} shows the end of the frame: after the last read the FSM spends one cycle in \texttt{DRAIN}, the last word is written together with the \texttt{acc\_finish} pulse, and \texttt{csr\_done} rises one cycle later. The testbench then reads the output buffer, where each APB read takes an extra wait state to cover the BRAM latency.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/task0_wave_end.png}
-    \caption{End of processing: the single \texttt{DRAIN} cycle (truncated to ``DR\ldots''), the last obuf write together with \texttt{acc\_finish}, the rise of \texttt{csr\_done} and the start of the output-buffer read-back over APB.}
+    \caption{End of processing: the \texttt{DRAIN} cycle, the last write with \texttt{acc\_finish}, the rise of \texttt{csr\_done} and the start of the APB read-back.}
     \label{fig:task0_wave_end}
 \end{figure}
 
-\paragraph{End of processing and read-back.} Figure~\ref{fig:task0_wave_end} shows the end of the frame. When the last address (\texttt{BUF\_DEPTH}$-1 = 25\,343$) has been read, \texttt{ibuf\_rd\_en} drops and the FSM spends a single cycle in \texttt{DRAIN} (1\,013\,905--1\,013\,915\,ns). Because the outputs are registered, the effects appear in the following cycle, when the FSM is already back in \texttt{IDLE}: the last word (address 25\,343) is written and \texttt{acc\_finish} pulses at $t = 1\,013\,915$\,ns, and \texttt{csr\_done} rises at 1\,013\,925\,ns. The testbench's next CSR poll returns \texttt{0x2} (\texttt{DONE} set, \texttt{BUSY} cleared, whereas the polls during processing returned \texttt{0x4}). The testbench then writes \texttt{OBUF\_ADDR} (\texttt{0x0C}) and starts reading \texttt{OBUF\_DATA} (\texttt{0x10}). The first of these reads, at the right edge of Figure~\ref{fig:task0_wave_end}, already shows the extra wait state inserted by \texttt{Student\_area\_0}: \texttt{PREADY} rises two cycles after \texttt{PSEL} instead of one, to cover the BRAM read latency. This explains the 4 cycles per word in Table~\ref{tab:task0_timing}.
-
-
-These waveforms provide a reference for the Sobel accelerator, which keeps the same \texttt{start}/\texttt{finish} handshake and BRAM port timing, so the same signals can be compared directly when \texttt{pixel\_acc.sv} is replaced.
-
 \subsection{Summary}
 
-All four steps of the reference flow completed successfully on Windows~11: the dependencies were fetched, the RV32IMC firmware was built (680 bytes), and the standalone simulation produced a pixel-exact inverted image in 25\,346 accelerator cycles. This confirmed that the toolchain was ready for the development of the Sobel accelerator described in the next section.
-
+All four steps of Task~0 completed successfully: the dependencies were fetched, the firmware was built, and the standalone simulation produced a pixel-exact inverted image. The toolchain was therefore confirmed to work, and the \texttt{start}/\texttt{finish} handshake and BRAM timing observed here were kept unchanged for the Sobel accelerator described in the next section.
