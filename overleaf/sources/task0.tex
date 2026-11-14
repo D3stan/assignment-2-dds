@@ -82,14 +82,15 @@ Finally, the same simulation was opened in the Questa GUI with \texttt{make -f M
     \label{fig:task0_wave_start}
 \end{figure}
 
-\paragraph{End of processing and read-back.} Figure~\ref{fig:task0_wave_end} shows the end of the frame. When the last address (\texttt{BUF\_DEPTH}$-1 = 25\,343$) has been read, \texttt{ibuf\_rd\_en} drops and the FSM spends a single cycle in \texttt{DRAIN} (1\,013\,905--1\,013\,915\,ns). Because the outputs are registered, the effects appear in the following cycle, when the FSM is already back in \texttt{IDLE}: the last word (address 25\,343) is written and \texttt{acc\_finish} pulses at $t = 1\,013\,915$\,ns, and \texttt{csr\_done} rises at 1\,013\,925\,ns. The testbench's next CSR poll returns \texttt{0x2} (\texttt{DONE} set, \texttt{BUSY} cleared, whereas the polls during processing returned \texttt{0x4}). The testbench then writes \texttt{OBUF\_ADDR} (\texttt{0x0C}) and starts reading \texttt{OBUF\_DATA} (\texttt{0x10}). The first of these reads, at the right edge of Figure~\ref{fig:task0_wave_end}, already shows the extra wait state inserted by \texttt{Student\_area\_0}: \texttt{PREADY} rises two cycles after \texttt{PSEL} instead of one, to cover the BRAM read latency. This explains the 4 cycles per word in Table~\ref{tab:task0_timing}.
-
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/task0_wave_end.png}
     \caption{End of processing: the single \texttt{DRAIN} cycle (truncated to ``DR\ldots''), the last obuf write together with \texttt{acc\_finish}, the rise of \texttt{csr\_done} and the start of the output-buffer read-back over APB.}
     \label{fig:task0_wave_end}
 \end{figure}
+
+\paragraph{End of processing and read-back.} Figure~\ref{fig:task0_wave_end} shows the end of the frame. When the last address (\texttt{BUF\_DEPTH}$-1 = 25\,343$) has been read, \texttt{ibuf\_rd\_en} drops and the FSM spends a single cycle in \texttt{DRAIN} (1\,013\,905--1\,013\,915\,ns). Because the outputs are registered, the effects appear in the following cycle, when the FSM is already back in \texttt{IDLE}: the last word (address 25\,343) is written and \texttt{acc\_finish} pulses at $t = 1\,013\,915$\,ns, and \texttt{csr\_done} rises at 1\,013\,925\,ns. The testbench's next CSR poll returns \texttt{0x2} (\texttt{DONE} set, \texttt{BUSY} cleared, whereas the polls during processing returned \texttt{0x4}). The testbench then writes \texttt{OBUF\_ADDR} (\texttt{0x0C}) and starts reading \texttt{OBUF\_DATA} (\texttt{0x10}). The first of these reads, at the right edge of Figure~\ref{fig:task0_wave_end}, already shows the extra wait state inserted by \texttt{Student\_area\_0}: \texttt{PREADY} rises two cycles after \texttt{PSEL} instead of one, to cover the BRAM read latency. This explains the 4 cycles per word in Table~\ref{tab:task0_timing}.
+
 
 These waveforms provide a reference for the Sobel accelerator, which keeps the same \texttt{start}/\texttt{finish} handshake and BRAM port timing, so the same signals can be compared directly when \texttt{pixel\_acc.sv} is replaced.
 
