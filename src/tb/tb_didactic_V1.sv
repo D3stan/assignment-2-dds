@@ -32,6 +32,15 @@ localparam int TOTAL_PIXELS = FRAME_WIDTH * FRAME_HEIGHT;
   localparam real UART_BIT_NS = 4340.0;   // real UART, divisor=27, 16x → 432 clk/bit
 `endif
 
+// The pixels no longer go through the SoC UART but through the Student_area_0
+// streaming DMA, whose bit period is DMA_CFG clocks (2 in fast sim, 432 otherwise)
+// at 100 MHz. The TB talks to the DMA, so it must use that bit period.
+`ifdef SIM_FAST_UART
+  localparam real DMA_BIT_NS = 20.0;      // DMA_CFG = 2
+`else
+  localparam real DMA_BIT_NS = 4320.0;    // DMA_CFG = 432
+`endif
+
 // ----------------------------------------------------------------
 // Clock / reset
 // ----------------------------------------------------------------
@@ -83,7 +92,9 @@ Didactic i_didactic (
 
 // Image buffers
 logic [7:0] pixels_in  [0:TOTAL_PIXELS-1];
-logic [7:0] pixels_out [0:TOTAL_PIXELS-1];
+logic [7:0] pixels_out [0:TOTAL_PIXELS-1];   // captured on acc_out_valid (inside the DUT)
+logic [7:0] pixels_uart[0:TOTAL_PIXELS-1];   // captured from the serial line uart_tx_o
+int         uart_byte_idx = 0;
 
 // Stream output capture from accelerator
 int stream_word_idx = 0;
@@ -111,13 +122,13 @@ end
 // ----------------------------------------------------------------
 task automatic uart_send_byte(input logic [7:0] data);
     tb_uart_tx = 1'b0;               // start bit
-    #(UART_BIT_NS * 1ns);
+    #(DMA_BIT_NS * 1ns);
     for (int b = 0; b < 8; b++) begin
         tb_uart_tx = data[b];        // LSB first
-        #(UART_BIT_NS * 1ns);
+        #(DMA_BIT_NS * 1ns);
     end
     tb_uart_tx = 1'b1;               // stop bit
-    #(UART_BIT_NS * 1ns);
+    #(DMA_BIT_NS * 1ns);
 endtask
 
 // ----------------------------------------------------------------
@@ -125,13 +136,28 @@ endtask
 // ----------------------------------------------------------------
 task automatic uart_recv_byte(output logic [7:0] data);
     @(negedge dut_uart_tx);                  // wait for start bit
-    #(UART_BIT_NS * 0.5 * 1ns);             // sample mid-start-bit
+    #(DMA_BIT_NS * 0.5 * 1ns);             // sample mid-start-bit
     for (int b = 0; b < 8; b++) begin
-        #(UART_BIT_NS * 1ns);
+        #(DMA_BIT_NS * 1ns);
         data[b] = dut_uart_tx;               // LSB first
     end
-    #(UART_BIT_NS * 1ns);                    // consume stop bit
+    #(DMA_BIT_NS * 1ns);                    // consume stop bit
 endtask
+
+// ----------------------------------------------------------------
+// Capture of the real serial output (DUT -> TB)
+// ----------------------------------------------------------------
+initial begin : uart_capture
+    logic [7:0] rx_b;
+    wait (reset === 1'b1);
+    #100;
+    forever begin
+        uart_recv_byte(rx_b);
+        if (uart_byte_idx < TOTAL_PIXELS)
+            pixels_uart[uart_byte_idx] = rx_b;
+        uart_byte_idx++;
+    end
+end
 
 // ----------------------------------------------------------------
 // Main test
@@ -197,8 +223,10 @@ initial begin
     // ----------------------------------------------------------
     // Normal flow: wait for CPU boot, send image via UART
     // ----------------------------------------------------------
-    // Wait for CPU to boot and initialise UART
-    #2500;
+    // Wait until the firmware has armed the DMA (START written):
+    // bytes received before that are dropped by the packer.
+    wait(tb_didactic.i_didactic.Student_SS_0.Student_area_0.reg_dma_busy === 1'b1);
+    #(DMA_BIT_NS * 1ns);
 
     $display("[TB] Sending image via UART...");
     for (i = 0; i < TOTAL_PIXELS; i++) begin
@@ -213,14 +241,34 @@ initial begin
     // ----------------------------------------------------------
     $display("[TB] Waiting for accelerator DONE...");
     
-    wait(tb_didactic.i_didactic.Student_SS_0.Student_area_0.csr_done === 1'b1);
-    @(posedge clk);  // one extra cycle so last obuf write is settled
-    $display("[TB] Accelerator done @ %0t ns", $time);
+    // DONE = last byte has left the UART TX
+    wait(tb_didactic.i_didactic.Student_SS_0.Student_area_0.reg_dma_done === 1'b1);
+    #(DMA_BIT_NS * 2 * 1ns);  // let the TB receiver finish sampling the last stop bit
+    $display("[TB] DMA done @ %0t ns", $time);
 
     // ----------------------------------------------------------
-    // Output verified directly from streaming capture
+    // Check: accelerator stream vs. bytes actually received on UART
     // ----------------------------------------------------------
-    $display("[TB] Streaming output captured (%0d words / %0d pixels)", stream_word_idx, stream_word_idx * 4);
+    $display("[TB] acc_out words: %0d (%0d pixels), UART bytes received: %0d (expected %0d)",
+             stream_word_idx, stream_word_idx * 4, uart_byte_idx, TOTAL_PIXELS);
+    if (tb_didactic.i_didactic.Student_SS_0.Student_area_0.err_rx_overrun)
+        $display("[TB] ERROR: RX_OVERRUN set (input word dropped)");
+    if (tb_didactic.i_didactic.Student_SS_0.Student_area_0.err_tx_overflow)
+        $display("[TB] ERROR: TX_OVERFLOW set (output word dropped)");
+    begin : compare
+        int n_err = 0;
+        for (int k = 0; k < TOTAL_PIXELS; k++) begin
+            if (pixels_uart[k] !== pixels_out[k]) begin
+                if (n_err < 10)
+                    $display("[TB] MISMATCH pixel %0d: uart=%0d acc=%0d", k, pixels_uart[k], pixels_out[k]);
+                n_err++;
+            end
+        end
+        if (n_err == 0 && uart_byte_idx == TOTAL_PIXELS && stream_word_idx * 4 == TOTAL_PIXELS)
+            $display("[TB] PASS: UART output matches accelerator output (%0d pixels)", TOTAL_PIXELS);
+        else
+            $display("[TB] FAIL: %0d mismatching pixels", n_err);
+    end
 
     // ----------------------------------------------------------
     // Write output PGM (P2 ASCII)
@@ -229,7 +277,7 @@ initial begin
     fd = $fopen(out_path, "w");
     $fwrite(fd, "P2\n%0d %0d\n255\n", FRAME_WIDTH, FRAME_HEIGHT);
     for (i = 0; i < TOTAL_PIXELS; i++)
-        $fwrite(fd, "%0d\n", pixels_out[i]);
+        $fwrite(fd, "%0d\n", pixels_uart[i]);   // what the host actually receives
     $fclose(fd);
     $display("[TB] Output written to %s", out_path);
 

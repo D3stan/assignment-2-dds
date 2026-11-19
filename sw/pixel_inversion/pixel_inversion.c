@@ -32,7 +32,9 @@
 #define DMA_CTRL_START  (1u << 0)
 #define DMA_CTRL_BUSY   (1u << 1)
 #define DMA_CTRL_IRQ_EN (1u << 2)
-#define DMA_CTRL_DONE   (1u << 3)
+#define DMA_CTRL_DONE   (1u << 3)   /* W1C */
+#define DMA_RX_OVERRUN  (1u << 4)   /* input word dropped (sticky, cleared on START) */
+#define DMA_TX_OVERFLOW (1u << 5)   /* output word dropped (sticky, cleared on START) */
 
 /* ------------------------------------------------------------------ */
 /* Frame geometry                                                      */
@@ -74,10 +76,11 @@ int main(void)
     LCR = 3u;               /* disable DLAB */
 #endif
 
+    /* DMA_CFG = clock frequency of the student subsystem / baud rate */
 #ifdef SIM_FAST_UART
     *ACCEL_DMA_CFG = 2u;   /* 2 clocks per bit (20 ns/bit) in fast simulation */
 #else
-    *ACCEL_DMA_CFG = 432u; /* 432 clocks per bit for standard UART */
+    *ACCEL_DMA_CFG = 432u; /* 100 MHz / 230400 baud (recompute for other clocks) */
 #endif
 
     /* Start DMA streaming transfer for entire frame:
@@ -86,10 +89,18 @@ int main(void)
     *ACCEL_DMA_LEN = BUF_DEPTH;
     *ACCEL_DMA_CTRL_STAT = DMA_CTRL_START | DMA_CTRL_IRQ_EN;
 
-    /* Wait for streaming processing to complete (no CPU polling of pixels) */
-    while (!(*ACCEL_DMA_CTRL_STAT & DMA_CTRL_DONE) && !(*ACCEL_CSR & CSR_DONE)) {
+    /* Wait until the last processed byte has left the UART TX.
+     * DONE is set by the DMA only after the whole frame has been transmitted. */
+    uint32_t stat;
+    while (!((stat = *ACCEL_DMA_CTRL_STAT) & DMA_CTRL_DONE)) {
         __asm__ volatile ("wfi");
     }
+
+    /* Acknowledge DONE (W1C) to drop the IRQ, keep IRQ_EN set */
+    *ACCEL_DMA_CTRL_STAT = DMA_CTRL_DONE | DMA_CTRL_IRQ_EN;
+
+    /* stat & (DMA_RX_OVERRUN | DMA_TX_OVERFLOW) != 0 means pixels were lost */
+    (void)stat;
 
     while (1) {
         __asm__ volatile ("wfi");

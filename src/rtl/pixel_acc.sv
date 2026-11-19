@@ -41,13 +41,15 @@ module pixel_acc #(
     // input  logic [31:0]           ibuf_rd_data,
     input  logic                  in_word_valid,
     input  logic [31:0]           in_word_data,
+    output logic                  in_ready,       // high when in_word_valid is consumed this cycle
 
     // obuf write port
     // output logic                  obuf_wr_en,
     // output logic [BUF_AW-1:0]     obuf_wr_addr,
     // output logic [31:0]           obuf_wr_data,
     output logic                  out_word_valid,
-    output logic [31:0]           out_word_data
+    output logic [31:0]           out_word_data,
+    input  logic                  out_ready       // sink can accept a word (stalls the drain steps)
 );
 
     // auxiliary signals
@@ -64,6 +66,7 @@ module pixel_acc #(
     logic rd_wrap;
     logic wr_en;
     logic rd_en;
+    logic cnt_clear;
     assign out_word_valid = wr_en;
     // ----------------------------------------
     logic [$clog2(IMG_WIDTH)-1:0] wr_col;
@@ -110,7 +113,10 @@ module pixel_acc #(
         .wr_col_end    (wr_col_end),
         .wr_wrap       (wr_wrap),
         .rd_wrap       (rd_wrap), 
-        .in_word_valid (in_word_valid)
+        .clear         (cnt_clear),
+        .in_word_valid (in_word_valid),
+        .in_ready      (in_ready),
+        .out_ready     (out_ready)
     );
 
     logic [47:0] strip_top;
@@ -190,6 +196,7 @@ module pixel_acc #(
     ) u_addr_incrementer (
         .clk        (clk),
         .rst_n      (rst_n),
+        .clear      (cnt_clear),
         .rd_inc     (rd_en),
         .wr_inc     (wr_en),
         // .rd_addr    (ibuf_rd_addr),
