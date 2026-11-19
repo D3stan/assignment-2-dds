@@ -1,0 +1,22 @@
+\section{Task 2: Integration into the Didactic-SoC} \label{sec:task2}
+
+The Sobel accelerator of Task~1 replaces \texttt{pixel\_acc.sv} inside \texttt{Student\_area\_0} (SS0). The provided CPU firmware \texttt{pixel\_inversion.c} is used unchanged, since the CSR, input buffer and output buffer protocol is the same.
+
+\subsection{System Testbench}
+
+% TODO: describe tb_didactic_V1.sv: UART bit-banged by the testbench, simplified UART model (20 cycles/byte), output buffer read directly.
+
+\subsection{Firmware Flow}
+
+% TODO: ss_init(0) + uart_init, ibuf pointer reset, 4 bytes -> 1 word -> ibuf, DATA_READY, poll DONE.
+
+\subsection{Results}
+
+% TODO: simulation time (expected ~2.03e6 cycles, 20.3 ms at 100 MHz), pattern_result.pgm compared with Task 1 output.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.45\textwidth]{figures/task2_pattern_result.png}
+    \caption{Output of the full SoC simulation.}
+    \label{fig:task2_result}
+\end{figure}

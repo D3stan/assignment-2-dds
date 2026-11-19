@@ -1,0 +1,28 @@
+\section{Task 3: FPGA Implementation} \label{sec:task3}
+
+The complete SoC, including the Sobel accelerator, is synthesized and implemented for the Digilent Nexys A7 board.
+
+\subsection{Firmware and Bitstream}
+
+% TODO: make build_test TEST=pixel_inversion (fpga/), make all_xilinx TEST=pixel_inversion; firmware is baked into the bitstream as IMEM init.
+
+\subsection{Implementation Results}
+
+% TODO: utilization (LUT, FF, BRAM), timing summary (WNS at 100 MHz), any synthesis warnings.
+
+\begin{table}[H]
+\centering
+\caption{Resource utilization after implementation.}
+\label{tab:task3_util}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Resource & Used & Available \\
+\midrule
+% TODO
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Programming the Board}
+
+% TODO: Hardware Manager, bitstream path, SW0 reset behaviour.

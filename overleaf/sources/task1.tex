@@ -1,4 +1,4 @@
-\section{Design and Implementation}
+\section{Task 1: Design and Implementation of the Sobel Accelerator} \label{sec:task1}
 
 Throughout this section, we will detail the design decisions that led to the final implementation. 
 
@@ -18,15 +18,44 @@ The cache is organized into three horizontal register lines as follows:
 
 \subsubsection{Address Incrementer}
 
-The address incrementer is the component responsible for storing the address pointers.
+The address incrementer is the sequential component responsible for handling the read and write pointers (internally stored as two-dimensional indices) and generating boundary status flags for the FSM. To process the $352\times288$ byte ($88\times288$ words) image, the module tracks two independent coordinate pairs: the row and column indices for both the input and output buffers (\texttt{rd\_row, rd\_col, wr\_row, wr\_col}).
+
+\paragraph{Pointer Management.} The module receives four input signals to control the address pointers: two for incrementing read and write column indices (\texttt{rd\_inc, wr\_inc}), and two to advance to the next row (\texttt{rd\_wrap, wr\_wrap}). When an increment signal is asserted, the corresponding column index advances across the row from $0$ to $87$ for the write index and from $0$ to $88$ for the read index; if an increment signal is asserted when a column index has already reached the boundary value, such index wont advance further. Upon asserting a wrapping signal, the corresponding column index resets to $0$ while the row index increments.
+
+\paragraph{Address Generation.} Linear word addresses are computed combinationally via the following simple formula
+$$\text{addr} = \text{row} \times 88 + \text{col}$$ 
+To avoid synthesizing hardware multipliers, which are expensive, the multiplication by $88$ is decomposed into shift and add operations using the identity $88 = 2^{3}\cdot(2^3+2^1+2^0)$:
+$$\texttt{addr} = \bigl( (\texttt{row} \ll 3) + (\texttt{row} \ll 1) + \texttt{row} \bigr) \ll 3 + \texttt{col}$$
+    
+\paragraph{Boundary Flags.} The module asserts a series of flags to inform the FSM about the occurrence of certain events:
+\begin{itemize}
+    \item if the read column index exits the bounds of the image (\texttt{rd\_col=88}), the module asserts the \texttt{rd\_row\_end} signal;
+    \item if the write column index reaches the image bounds (\texttt{wr\_row\_end=87}), the incrementer asserts the \texttt{wr\_row\_end};
+    \item finally, if the write address reaches the last row (\texttt{wr\_row=287}), \texttt{wr\_col\_end} is asserted.
+\end{itemize}
 
 \subsubsection{Sobel ALUs}
 
-To compute the output word, the system makes use of 4 sobel ALUs
+To compute a full word-sized output per cycle, the system uses a set of four purely combinational \texttt{sobel\_alu} modules operating in parallel. Each ALU receives a $3\times3$ neighborhood ($p_{ij}$) of pixels and produces one output pixel.
 
-\subsubsection{Decoder}
+Instead of computing the exact Euclidean gradient magnitude, which requires complex square root circuits, each ALU approximates the edge strength using $L_1$ norm $|D_x| + |D_y|$:
+\begin{align*}
+    D_x &= (p_{02} + 2p_{12} + p_{22}) - (p_{00} + 2p_{10} + p_{20}) \\
+    D_y &= (p_{00} + 2p_{01} + p_{02}) - (p_{20} + 2p_{21} + p_{22})
+\end{align*}
+where multiplications by $2$ are implemented as inexpensive left shifts. The positive and negative terms of each gradient are summed into 10-bit unsigned intermediates, and their absolute values are obtained by comparing the two terms and subtracting the smaller from the larger.  
+Finally, $|D_x|$ and $|D_y|$ are added into an 11-bit sum and clamped into the 8-bit range $[0,255]$ by checking whether any of the upper three bits are asserted.
 
-In this initial architecture, the cache exposes all three full rows combinationally to the Pixel Decoder, allowing immediate access to any pixel neighborhood along the row without extra read latency.
+\subsubsection{Pixel Decoder}
+
+The pixel decoder is a  purely combinational module that , given the three full cache lines and the current write coordinates, extracts four overlapping $3\times3$ pixel windows corresponding to the four pixels within the target output word, handling eventual boundary conditions. 
+
+To prevent out-of-bounds memory accesses along image edges, the decoder implements border replication.
+\begin{itemize}
+    \item On the first row, the upper line is substituted with the central row; similarly, on the bottom row, the lower line is replaced with the central row.
+
+    \item For each of the three rows, the decoder selects the 4-pixel target word at the current column index and prepends the rightmost pixel of the previous word alongside the leftmost pixel of the subsequent word, creating a 6-pixel horizontal strip. When the focus is at the left or right boundary of the image, the outermost pixel of the current word is duplicated in place of the adjacent word.
+\end{itemize}
 
 \subsubsection{Finite State Machine}
 
@@ -180,11 +209,26 @@ $$\texttt{rd\_en} = \texttt{rd\_inc} \;\wedge\; \neg(\texttt{rd\_row\_end} \;\ve
 
 \subsection{System Structure}
 
-Remember that fetch\_pos a and fetch\_en are delayed by one cycle through ffs
+Figure~\ref{fig:sys_struct} illustrates the top-level architecture of the initial accelerator and its external interfaces to the input and output buffers.
 
+\paragraph{FSM Controller.} 
+
+The FSM serves as the controller module, receiving the \texttt{start} signal and asserting the \texttt{finish} signal once the image has been processed. It coordinates memory operations by controlling the read and write flags (\texttt{rd\_en, wr\_en}), respectively, for the input and output buffers. Such signals, together with the wrapping flags (\texttt{rd\_en, wr\_wrap}), are used to drive the address incrementer; which, exchanges the relative boundary handling flags (\texttt{rd\_row\_end, wr\_row\_end, wr\_col\_end}). Additionally, the FSM controls vertical cache updates via the \texttt{shift\_en} signal and cache fetching via \texttt{rd\_en}.
+    
+\paragraph{Memory Synchronization.} 
+
+Due to the input buffer read latency of one-cycle, a word requested at cycle $t$ will be available to the accelerator at cycle $t+1$. To ensure that the cache correctly stores incoming data into the exact column slot, both the fetch signal (\texttt{fetch\_en}, derived from \texttt{rd\_en}) and the column index (\texttt{fetch\_pos}, driven by \texttt{rd\_col}) are delayed by one clock cycle thanks to dedicated flip-flops.
+
+\paragraph{Datapath.} 
+
+Incoming words from the input buffer are written into the bottom line of the cache at the registered fetch position. The cache exposes its three full horizontal lines combinationally to the pixel decoder, which also receives the current write coordinates (\texttt{wr\_row} and \texttt{wr\_col}) from the address incrementer. From this data, the decoder extracts four overlapping $3\times3$ pixel windows and dispatches them to the four ALUs. Finally, the four output pixels are concatenated into a single word and written to the output buffer at the current write address (\texttt{wr\_addr}).
+
+\begin{figure}[H]
+\centering
 \tikzset{
   blk/.style={draw, thick, rounded corners=2pt, align=center},
   blk/.default=white,
+  ff/.style={draw, thick, fill=white, minimum width=0.52cm, minimum height=0.62cm, font=\ttfamily\scriptsize, align=center},
   lab/.style={font=\ttfamily\scriptsize, inner sep=1.5pt},
   data/.style={-{Stealth[length=2.2mm]}, line width=1.3pt},
   ctrl/.style={-{Stealth[length=1.8mm]}, thick, black, dashed},
@@ -209,18 +253,30 @@ Remember that fetch\_pos a and fetch\_en are delayed by one cycle through ffs
     \node[blk, minimum width=1.7cm, minimum height=0.6cm] (alu\i) at (11.4,\y) {\footnotesize \textbf{ALU \i}};
   }
 
+  % ---------------- pipeline FFs ----------------
+  \node[ff] (ff_en)  at (3.6,5.45) {FF};
+  \node[ff] (ff_pos) at (5.2,4.06) {FF};
+  % clock triangles on left edge of FFs
+  \draw[thick] (ff_en.west |- 0,5.26) -- ++(0.11,0.07) -- ++(-0.11,0.07);
+  \draw[thick] (ff_pos.west |- 0,3.86) -- ++(0.11,0.07) -- ++(-0.11,0.07);
+
   % ---------------- ibuf side ----------------
   \draw[ctrl] (fsm.west |- 0,6.55) -- (ibuf.east |- 0,6.55);
   \node[lab, anchor=south west] at (0.85,6.55) {rd\_en};
   \fill[black] (3.6,6.55) circle (1.6pt);
-  \draw[ctrl] (3.6,6.55) -- (3.6,2.85);
-  \node[lab, rotate=90, anchor=south] at (3.6,3.5) {fetch\_en};
+  \draw[ctrl] (3.6,6.55) -- (ff_en.north);
+  \draw[ctrl] (ff_en.south) -- (3.6,2.85);
+  \node[lab, rotate=90, anchor=south] at (3.6,3.85) {fetch\_en};
+
   \draw[ctrl] (fsm.west |- 0,6.05) -- (4.4,6.05) -- (4.4,2.85);
-  \node[lab, rotate=90, anchor=south] at (4.4,3.5) {shift\_en};
+  \node[lab, rotate=90, anchor=south] at (4.4,3.85) {shift\_en};
+
   \draw[data] (addr.west |- 0,4.55) -- (ibuf.east |- 0,4.55);
   \node[lab, anchor=south west] at (0.85,4.55) {rd\_addr};
-  \draw[data] (addr.west |- 0,4.05) -- (5.2,4.05) -- (5.2,2.85);
-  \node[lab, rotate=90, anchor=south] at (5.2,3.6) {fetch\_pos};
+  \draw[data] (addr.west |- 0,4.05) -- (ff_pos.east);
+  \draw[data] (ff_pos.south) -- (5.2,2.85);
+  \node[lab, anchor=south] at (6.0,3.15) {fetch\_pos};
+
   \draw[data] (ibuf.east |- 0,1.9) -- (cache.west);
   \node[lab, anchor=south west] at (0.85,1.9) {rd\_data};
   \node[lab, anchor=north west] at (0.85,1.9) {[31:0]};
@@ -261,22 +317,35 @@ Remember that fetch\_pos a and fetch\_en are delayed by one cycle through ffs
   \draw[ctrl] (8.4,6.8) -- (8.4,7.9);
   \node[lab, anchor=south] at (7.2,7.9) {start};
   \node[lab, anchor=south] at (8.4,7.9) {finish};
-  \node[font=\sffamily\scriptsize, anchor=west, text=gray!40!black] at (9.0,8.0) {};
 
   % ---------------- legend ----------------
   \draw[data] (2.4,-0.35) -- ++(0.7,0);
   \node[anchor=west, font=\sffamily\scriptsize] at (3.15,-0.35) {data};
   \draw[ctrl] (4.2,-0.35) -- ++(0.7,0);
   \node[anchor=west, font=\sffamily\scriptsize] at (4.95,-0.35) {control};
-  % \node[anchor=west, font=\sffamily\scriptsize, text=gray!40!black] at (6.4,-0.35)
-       {in COMPUTE: 1 word read from ibuf and 1 word (4 output pixels) written to obuf per cycle};
 \end{tikzpicture}
+\caption{Top-level block diagram of the Sobel accelerator.}
+\label{fig:sys_struct}
+\end{figure}
 
 \subsection{Design Optimizations}
 
 In the current state, the decoder is one of the most resource-intensive modules. The reason behind this stems from the immense number of inputs to this component, which corresponds to the size of the entire cache. The optimization we will implement, therefore, will aim at reducing the number of resources synthesized by developing a rotating cache design. Instead of scanning the cache linearly, this new system will only observe a fixed window, while the data will rotate in the opposite direction.
 
 \subsubsection{Cache}
+
+ The redesigned cache operates as a two-dimensional cyclic shift-register matrix. The cache now supports two independent shifting axes controlled by the FSM: vertical shifts between rows and horizontal leftward circular rotations along each row.
+
+The three horizontal register lines operate as follows:
+\begin{itemize}
+    \item On both the upper lines, when the vertical shift signal is asserted, each register loads the word directly below it. When the horizontal rotation is asserted, each register $i$ samples its right cyclic neighbor $(i+1)\mod 87$, without discarding any value.
+    \item On the bottom line, incoming words from the input buffer are no longer routed to all 88 columns; conversely, only the first two registers are capable of sampling the input word. A compact 2-bit control signal (\texttt{fetch\_pos}) directly governs writes into the bottom row:
+    \begin{itemize}
+        \item \texttt{fetch\_pos = 01} writes \texttt{in\_word} into register $0$;
+        \item \texttt{fetch\_pos = 10} writes \texttt{in\_word} into register $1$;
+        \item whereas, \texttt{fetch\_pos = 00} and \texttt{11} disable external writes.
+    \end{itemize}
+\end{itemize}
 
 \subsubsection{Decoder}
 
