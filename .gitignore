@@ -71,5 +71,6 @@ __pycache__/
 # Generated testbench data.
 test.txt
 
+**/.gdb_history
 CLAUDE.md
 .claude/
