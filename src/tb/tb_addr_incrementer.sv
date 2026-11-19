@@ -3,7 +3,7 @@
 `timescale 1ns/1ps
 module tb_addr_incrementer;
 
-    logic clk = 0, rst_n = 0, rd_inc = 0, wr_inc = 0;
+    logic clk = 0, rst_n = 0, rd_inc = 0, wr_inc = 0, clear = 0;
     logic [14:0] rd_addr, wr_addr;
     logic [6:0]  rd_col, wr_col;
     logic [8:0]  rd_row, wr_row;

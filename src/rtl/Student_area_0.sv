@@ -23,7 +23,11 @@
     * Buffer layout: each word holds (32 / PIXEL_WIDTH) = 4 pixels,
     * packed little-endian (pixel 0 in LSBs).
     *
-    * NOTE: do not write to IBUF while BUSY=1; do not read OBUF until DONE=1.
+    * PIPELINED TRANSFER: the CPU may set DATA_READY before (or while)
+    * writing IBUF. Writing IBUF_ADDR clears the internal word counter;
+    * every IBUF_DATA write increments it, and the accelerator stalls
+    * until each image row it needs has been fully written.
+    * NOTE: do not read OBUF until DONE=1.
 */
 
 module Student_area_0 #(
@@ -100,6 +104,22 @@ logic [31:0]       obuf_rd_data;
 logic acc_start, acc_finish;
 
 // ============================================================
+// Pipeline transfer
+// ============================================================
+logic [BUF_AW:0] ibuf_count;
+always_ff @(posedge clk_in or negedge rst) begin
+    if (~rst)
+        ibuf_count <= '0;
+    else if (PSEL && !PREADY && PWRITE && PADDR == ADDR_IBUF_ADDR)
+        ibuf_count <= '0;
+    else if (ibuf_wr_en)
+        ibuf_count <= ibuf_count + 1'b1;
+end
+
+
+
+
+// ============================================================
 // BRAM instances
 // ============================================================
 bram_sdp #(.DATA_WIDTH(32), .ADDR_WIDTH(BUF_AW), .DEPTH(BUF_DEPTH)) ibuf (
@@ -155,7 +175,9 @@ pixel_acc #(
     .obuf_wr_data (obuf_wr_data),
     // handshake
     .start      (acc_start),
-    .finish     (acc_finish)
+    .finish     (acc_finish),
+    // pipeline transfer
+    .ibuf_words_avail   (ibuf_count)
 );
 
 // ============================================================

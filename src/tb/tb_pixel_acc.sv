@@ -47,7 +47,8 @@ module tb_pixel_acc;
         .obuf_wr_addr (obuf_wr_addr),
         .obuf_wr_data (obuf_wr_data),
         .start        (start),
-        .finish       (finish)
+        .finish       (finish),
+        .ibuf_words_avail ((BUF_AW+1)'(BUF_DEPTH))   // ibuf already full
     );
 
     // ------------------------------------------------------------

@@ -64,6 +64,7 @@ module tb_top;
     addr_incrementer u_addr_inc (
         .clk        (clk),
         .rst_n      (rst_n),
+        .clear      (start),        // restart from address 0 on every new frame
         .rd_inc     (rd_en),        // Driven by FSM's read enable
         .wr_inc     (wr_en),        // Driven by FSM's write enable
         .rd_addr    (rd_addr),

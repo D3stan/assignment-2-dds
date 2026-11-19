@@ -72,6 +72,7 @@ int main(void)
         } else if (cmd == 'w') {
             result_ready = 0u;
             *ACCEL_IBUF_ADDR = 0u;
+            *ACCEL_CSR = CSR_DATA_READY;
             for (uint32_t i = 0u; i < BUF_DEPTH; i++) {
                 uint32_t word = (uint32_t)uart_read_byte()
                               | ((uint32_t)uart_read_byte() <<  8)
@@ -79,7 +80,6 @@ int main(void)
                               | ((uint32_t)uart_read_byte() << 24);
                 *ACCEL_IBUF_DATA = word;
             }
-            *ACCEL_CSR = CSR_DATA_READY;
             while (!(*ACCEL_CSR & CSR_DONE)) {}
             result_ready = 1u;
 

@@ -43,7 +43,10 @@ module pixel_acc #(
 
     // handshake
     input  logic                  start,
-    output logic                  finish
+    output logic                  finish,
+
+    // pipeline transfer
+    input  logic [BUF_AW:0]       ibuf_words_avail
 );
 
     // auxiliary signals
@@ -74,6 +77,14 @@ module pixel_acc #(
 
     logic [1:0] cache_fetch_pos;
 
+    // Pipeline transfer
+    // row_ready: the whole row starting at ibuf_rd_addr (IMG_WIDTH words)
+    // is already in ibuf. On the last output row nothing is read, so it is
+    // always ready. The FSM only checks it before starting a row burst,
+    // never in the middle (a mid-burst stall would corrupt the cache).
+    logic row_ready;
+    assign row_ready = wr_col_end ||
+        (({1'b0, ibuf_rd_addr} + (BUF_AW+1)'(IMG_WIDTH)) <= ibuf_words_avail);
 
     cache #(
         .IMG_PX_WIDTH    (IMG_WIDTH * 4)
@@ -105,7 +116,8 @@ module pixel_acc #(
         .wr_row_end (wr_row_end),
         .wr_col_end (wr_col_end),
         .wr_wrap    (wr_wrap),
-        .rd_wrap    (rd_wrap)
+        .rd_wrap    (rd_wrap),
+        .row_ready  (row_ready)
     );
 
     logic [47:0] strip_top;
@@ -185,6 +197,7 @@ module pixel_acc #(
     ) u_addr_incrementer (
         .clk        (clk),
         .rst_n      (rst_n),
+        .clear      (start),    // restart from address 0 on every new frame
         .rd_inc     (rd_en),
         .wr_inc     (wr_en),
         .rd_addr    (ibuf_rd_addr),

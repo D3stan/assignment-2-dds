@@ -20,10 +20,14 @@ module fsm(
     // control signals
     input logic rd_row_end, // rd_col = 88 ?
     input logic wr_row_end, // wr_col = 87 ?
-    input logic wr_col_end  // wr_row = 287 ?
+    input logic wr_col_end, // wr_row = 287 ?
+
+    // pipeline transfer: the next row to read is fully in ibuf
+    input logic row_ready
 );
-    typedef enum logic [2:0] {
+    typedef enum logic [3:0] {
         IDLE,
+        WAIT_ROW,   // wait for the first row before FETCH (no read pending)
         FETCH,
         WAIT_0,
         WAIT_1,
@@ -67,9 +71,13 @@ module fsm(
                 if(rd_row_end)
                     rd_wrap = 1'b1;
             end 
-            WAIT_0: begin 
-                rd_inc = 1'b1;
-                fetch_int = 2'b01;
+            WAIT_0: begin
+                // stall here (all outputs 0) until the next row is in ibuf:
+                // safe because no read is pending (SHIFT did not read)
+                if (row_ready) begin
+                    rd_inc    = 1'b1;
+                    fetch_int = 2'b01;
+                end
             end
             WAIT_1: begin
                 rd_inc    = 1'b1;
@@ -101,10 +109,11 @@ module fsm(
     always_comb begin
         next_state = state;
         case (state)
-            IDLE:  if (start) next_state = FETCH;
+            IDLE:     if (start) next_state = WAIT_ROW;
+            WAIT_ROW: if (row_ready) next_state = FETCH;
             FETCH:  if(rd_row_end) next_state = ALIGN;
             ALIGN: next_state = SHIFT;
-            WAIT_0: next_state = WAIT_1; 
+            WAIT_0: if (row_ready) next_state = WAIT_1;
             WAIT_1: next_state = WAIT_2;
             WAIT_2: next_state = COMPUTE;
             COMPUTE: begin

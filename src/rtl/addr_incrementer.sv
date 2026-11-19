@@ -16,6 +16,8 @@ module addr_incrementer (
     input  logic        clk,
     input  logic        rst_n,
 
+    input  logic        clear,      // synchronous clear of all counters (new frame)
+
     input  logic        rd_inc,
     input  logic        wr_inc,
 
@@ -45,6 +47,9 @@ module addr_incrementer (
         if (~rst_n) begin
             rd_col <= 7'd0;
             rd_row <= 9'd0;
+        end else if (clear) begin
+            rd_col <= 7'd0;
+            rd_row <= 9'd0;
         end else if (rd_wrap) begin
             rd_col <= 7'd0;
             rd_row <= rd_row + 9'd1;
@@ -58,7 +63,10 @@ module addr_incrementer (
         if (~rst_n) begin
             wr_col <= 7'd0;
             wr_row <= 9'd0;
-        end else if(wr_wrap) begin 
+        end else if (clear) begin
+            wr_col <= 7'd0;
+            wr_row <= 9'd0;
+        end else if(wr_wrap) begin
             wr_col <= 7'd0;
             wr_row <= wr_row + 9'd1;
         end else if (wr_inc) begin
