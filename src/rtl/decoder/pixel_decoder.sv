@@ -30,7 +30,7 @@ module pixel_decoder #(
 
         w     = r[4:1];
         left  = (c == '0)                  ? w[0] : r[0];
-        right = (c == IMG_WIDTH_WORDS - 1) ? w[3] : r[5];
+        right = (int'(c) == IMG_WIDTH_WORDS - 1) ? w[3] : r[5];
 
         return strip_t'{right, w[3], w[2], w[1], w[0], left};
     endfunction
@@ -41,7 +41,7 @@ module pixel_decoder #(
 
     // replicate top/bottom row for first/last row of the image
     assign top_row = strip_t'((row_idx == 0)              ? row_center : row_above);
-    assign bot_row = strip_t'((row_idx == IMG_HEIGHT - 1) ? row_center : row_below);
+    assign bot_row = strip_t'((int'(row_idx) == IMG_HEIGHT - 1) ? row_center : row_below);
 
     assign t = get_strip(top_row, col_idx);
     assign m = get_strip(row_center, col_idx);

@@ -158,7 +158,7 @@ module tb_pixel_decoder;
         if (error_count == 0)
             $display("TEST SUCCESS: All pixel routing tests passed!");
         else
-            $display("TEST FAILURE: Total errors = %0d", error_count);
+            $fatal(1, "TEST FAILURE: Total errors = %0d", error_count);
         $display("==================================================\n");
 
         $finish;

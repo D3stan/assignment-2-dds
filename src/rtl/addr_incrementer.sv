@@ -76,16 +76,16 @@ module addr_incrementer (
 
     // addresses
     always_comb begin : wr_addr_update
-        automatic logic [15:0] wr_row_x3  = wr_row << 1;
-        automatic logic [15:0] wr_row_x11 = (wr_row << 3) + wr_row_x3 + wr_row;
+        automatic logic [15:0] wr_row_x3  = 16'(wr_row) << 1;
+        automatic logic [15:0] wr_row_x11 = (16'(wr_row) << 3) + wr_row_x3 + 16'(wr_row);
         
-        wr_addr = (wr_row_x11 << 3) + wr_col;
+        wr_addr = 15'((wr_row_x11 << 3) + 16'(wr_col));
     end
     always_comb begin : rd_addr_update
-        automatic logic [15:0] rd_row_x3  = rd_row << 1;
-        automatic logic [15:0] rd_row_x11 = (rd_row << 3) + rd_row_x3 + rd_row;
+        automatic logic [15:0] rd_row_x3  = 16'(rd_row) << 1;
+        automatic logic [15:0] rd_row_x11 = (16'(rd_row) << 3) + rd_row_x3 + 16'(rd_row);
         
-        rd_addr = (rd_row_x11 << 3) + rd_col;
+        rd_addr = 15'((rd_row_x11 << 3) + 16'(rd_col));
     end
     
     // flags

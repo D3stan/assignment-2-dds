@@ -15,7 +15,7 @@ module upper_registers_line #(
     output logic [BITS_PER_LINE-1 : 0]  out_words
 );
 
-    logic [BITS_PER_LINE+WORD_LENGTH-1 : 0] chain;
+    logic [BITS_PER_LINE+WORD_LENGTH-1 : 0] chain /*verilator split_var*/;
 
     // wrap-around: the leftmost register (reg 0) re-enters on the right
     assign chain[BITS_PER_LINE +: WORD_LENGTH] = chain[0 +: WORD_LENGTH];

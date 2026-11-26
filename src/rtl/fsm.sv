@@ -103,6 +103,7 @@ module fsm(
             end
             ALIGN: xshift = 1'b1;
             SHIFT: yshift = 1'b1;
+            default: ;
         endcase
     end
 
