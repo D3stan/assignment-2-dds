@@ -16,7 +16,7 @@ module bottom_registers_line #(
 );
 
     // one extra word: word WORDS_PER_LINE is the input of the last register
-    logic [BITS_PER_LINE+WORD_LENGTH-1 : 0] chain;
+    logic [BITS_PER_LINE+WORD_LENGTH-1 : 0] chain /*verilator split_var*/;
 
     // wrap-around: the leftmost register (reg 0) re-enters on the right
     assign chain[BITS_PER_LINE +: WORD_LENGTH] = chain[0 +: WORD_LENGTH];
